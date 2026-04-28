@@ -2,6 +2,8 @@
 
 > Autonomous driving trajectory planning with a route-conditioned diffusion policy.
 
+[简体中文 README](README.zh-CN.md)
+
 `RouteDiffuser` is the public-facing project name for the `nn_planner` codebase. The goal is to
 show the planner core of an autonomous driving system in a form that reads well on GitHub and in a
 resume: scene representation, conditional trajectory generation, evaluation, and visual artifacts.
