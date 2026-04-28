@@ -6,15 +6,16 @@ from dataclasses import dataclass
 from typing import Any
 
 import torch
-import torch.nn.functional as F
 from torch import nn
 
 from planner.datasets.schema import CanonicalSceneBatch
 from planner.diffusion.schedule import DiffusionSchedule
 from planner.diffusion.utils import ddpm_step, q_sample
 from planner.inference.anchoring import anchor_first_timestep
+from planner.losses.diffusion import noise_prediction_loss
 from planner.models.diffusion_decoder import DiffusionDecoder
 from planner.models.scene_encoder import SceneEncoder
+from planner.preprocess import build_route_trajectory_prior
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,8 @@ class DiffusionPlannerConfig:
     decoder_kernel_size: int = 5
     decoder_groups: int = 8
     future_horizon: int = 16
+    route_query_step: float = 2.5
+    use_route_prior: bool = True
     diffusion_steps: int = 32
     beta_start: float = 1e-4
     beta_end: float = 2e-2
@@ -93,6 +96,39 @@ class DiffusionPlanner(nn.Module):
         context = self.encoder(scene_batch)
         return self.decoder(noisy_trajectory, timesteps, context)
 
+    def build_trajectory_prior(self, scene_batch: CanonicalSceneBatch) -> torch.Tensor:
+        if not self.config.use_route_prior:
+            prior = torch.zeros(
+                scene_batch.batch_size,
+                self.config.future_horizon,
+                self.config.trajectory_dim,
+                device=scene_batch.ego_current_state.device,
+                dtype=scene_batch.ego_current_state.dtype,
+            )
+            prior[:, 0] = scene_batch.ego_current_state
+            return prior
+
+        return build_route_trajectory_prior(
+            scene_batch=scene_batch,
+            future_horizon=self.config.future_horizon,
+            longitudinal_step=self.config.route_query_step,
+        )
+
+    def _training_mask(self, scene_batch: CanonicalSceneBatch) -> torch.Tensor:
+        mask = (
+            scene_batch.future_ego_mask
+            if scene_batch.future_ego_mask is not None
+            else torch.ones(
+                scene_batch.batch_size,
+                self.config.future_horizon,
+                device=scene_batch.ego_current_state.device,
+                dtype=torch.bool,
+            )
+        )
+        mask = mask.clone()
+        mask[:, 0] = False
+        return mask
+
     def training_loss(
         self, scene_batch: CanonicalSceneBatch, noise: torch.Tensor | None = None
     ) -> dict[str, torch.Tensor]:
@@ -100,7 +136,8 @@ class DiffusionPlanner(nn.Module):
         if scene_batch.future_ego_trajectory is None:
             raise ValueError("future_ego_trajectory is required for training")
 
-        target = scene_batch.future_ego_trajectory
+        prior = self.build_trajectory_prior(scene_batch)
+        target = scene_batch.future_ego_trajectory - prior
         batch_size = target.shape[0]
         timesteps = torch.randint(
             low=0,
@@ -111,13 +148,21 @@ class DiffusionPlanner(nn.Module):
         )
         if noise is None:
             noise = torch.randn_like(target)
+        noise = noise.clone()
+        noise[:, 0] = 0.0
         noisy_target = q_sample(target, timesteps, self.schedule, noise=noise)
+        noisy_target[:, 0] = 0.0
         pred_noise = self(scene_batch, noisy_target, timesteps)
-        loss = F.mse_loss(pred_noise, noise)
+        loss = noise_prediction_loss(
+            pred_noise,
+            noise,
+            mask=self._training_mask(scene_batch),
+        )
         return {
             "loss": loss,
             "pred_noise": pred_noise,
             "target_noise": noise,
+            "trajectory_prior": prior,
             "timesteps": timesteps,
         }
 
@@ -128,25 +173,28 @@ class DiffusionPlanner(nn.Module):
         scene_batch.validate()
         batch_size = scene_batch.batch_size
         device = scene_batch.ego_current_state.device
+        prior = self.build_trajectory_prior(scene_batch)
         outputs = []
 
         for _ in range(num_samples):
-            sample = torch.randn(
+            residual = torch.randn(
                 batch_size,
                 self.config.future_horizon,
                 self.config.trajectory_dim,
                 device=device,
             )
-            sample = anchor_first_timestep(sample, scene_batch.ego_current_state)
+            residual[:, 0] = 0.0
 
             for step in reversed(range(self.config.diffusion_steps)):
                 timesteps = torch.full(
                     (batch_size,), step, device=device, dtype=torch.long
                 )
-                pred_noise = self(scene_batch, sample, timesteps)
-                sample = ddpm_step(sample, pred_noise, timesteps, self.schedule)
-                sample = anchor_first_timestep(sample, scene_batch.ego_current_state)
+                pred_noise = self(scene_batch, residual, timesteps)
+                residual = ddpm_step(residual, pred_noise, timesteps, self.schedule)
+                residual[:, 0] = 0.0
 
+            sample = prior + residual
+            sample = anchor_first_timestep(sample, scene_batch.ego_current_state)
             outputs.append(sample)
 
         return torch.stack(outputs, dim=1)

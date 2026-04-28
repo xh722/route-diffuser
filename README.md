@@ -14,13 +14,13 @@ Most autonomous driving projects cannot ship their real datasets, simulator stac
 evaluation infrastructure. This repository focuses on the part that can be shown clearly:
 
 - canonical scene-schema design for ego, neighbors, lanes, route polylines, and masks
-- a conditional 1D U-Net diffusion policy for future ego trajectory generation
+- a route-prior residual diffusion policy with a conditional 1D U-Net decoder
 - structured synthetic driving scenes that still look like real planning tasks
 - open-loop metrics, checkpointing, and plotting for inspection and storytelling
 
 ## What It Demonstrates
 
-- Built a route-conditioned planner that denoises future trajectories from scene context.
+- Built a route-conditioned planner that denoises trajectory residuals around a route prior.
 - Implemented DDPM-style training, iterative inference, and first-step anchoring to the current ego state.
 - Modeled keep-lane, lane-change-left, lane-change-right, and curved-road scenarios in a reusable synthetic generator.
 - Packaged the project with training, inference, evaluation, and portfolio demo scripts.
@@ -55,6 +55,7 @@ and writes a summary that is easy to reuse in a GitHub project page or resume po
 structured scenario generator / future dataset adapter
   -> canonical scene tensors
   -> scene encoder
+  -> route prior construction
   -> conditional diffusion decoder (1D U-Net)
   -> iterative trajectory denoising
   -> open-loop metrics and debugging plots

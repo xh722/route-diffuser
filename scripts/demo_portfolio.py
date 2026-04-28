@@ -37,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-config", default="configs/train/base.yaml")
     parser.add_argument("--inference-config", default="configs/inference/base.yaml")
     parser.add_argument("--output-dir", default="outputs/portfolio_demo")
-    parser.add_argument("--epochs", type=int, default=4)
+    parser.add_argument("--epochs", type=int, default=20)
     return parser.parse_args()
 
 
@@ -195,7 +195,7 @@ def main() -> None:
         "tagline": "Conditional 1D U-Net trajectory denoiser for route-conditioned planning",
         "highlights": [
             "Canonical scene schema for ego, neighbors, lanes, route polylines, and masks.",
-            "Conditional 1D U-Net decoder trained with DDPM-style noise prediction.",
+            "Route-prior residual diffusion with a conditional 1D U-Net decoder.",
             "Structured synthetic driving scenarios spanning keep-lane, lane changes, and curves.",
             "End-to-end scripts for training, inference, evaluation, and portfolio artifact generation.",
         ],
@@ -210,7 +210,7 @@ def main() -> None:
         "stack": ["Python", "PyTorch", "Diffusion Models", "Trajectory Planning"],
         "resume_bullets": [
             "Built a route-conditioned autonomous driving planner around a conditional diffusion policy.",
-            "Implemented a conditional 1D U-Net decoder, DDPM training loop, and iterative denoising sampler.",
+            "Implemented route-prior residual diffusion with a conditional 1D U-Net decoder and iterative denoising sampler.",
             "Designed structured synthetic scenarios and open-loop metrics to demonstrate planning behavior without proprietary data.",
         ],
         "next_extensions": [

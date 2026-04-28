@@ -4,11 +4,13 @@ import torch
 
 from planner.preprocess import (
     MinMaxNormalizer,
+    build_route_trajectory_prior,
     cos_sin_to_heading,
     global_to_local,
     heading_to_cos_sin,
     local_to_global,
 )
+from planner.datasets import SyntheticDatasetConfig, SyntheticPlanningDataset, collate_scene_batches
 
 
 def test_heading_roundtrip() -> None:
@@ -35,3 +37,20 @@ def test_min_max_normalizer_roundtrip() -> None:
     normalized = normalizer.normalize(values)
     restored = normalizer.unnormalize(normalized)
     assert torch.allclose(restored, values, atol=1e-5)
+
+
+def test_route_trajectory_prior_matches_synthetic_scene() -> None:
+    dataset = SyntheticPlanningDataset(SyntheticDatasetConfig(num_samples=2))
+    batch = collate_scene_batches([dataset[0], dataset[1]])
+    prior = build_route_trajectory_prior(
+        scene_batch=batch,
+        future_horizon=batch.future_horizon,
+        longitudinal_step=2.5,
+    )
+
+    xy_error = torch.linalg.norm(
+        prior[..., :2] - batch.future_ego_trajectory[..., :2],
+        dim=-1,
+    )
+    assert torch.allclose(prior[:, 0], batch.ego_current_state)
+    assert float(xy_error.mean()) < 1.5
