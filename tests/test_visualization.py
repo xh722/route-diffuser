@@ -46,6 +46,7 @@ def test_candidate_and_gallery_plots_are_generated(tmp_path) -> None:
         route_polylines=batch.route_lanes,
         route_mask=batch.route_lanes_mask,
         output_path=candidate_path,
+        selected_index=1,
     )
     gallery_result = plot_scenario_gallery(
         predicted_samples=predictions,
@@ -54,6 +55,7 @@ def test_candidate_and_gallery_plots_are_generated(tmp_path) -> None:
         route_mask=batch.route_lanes_mask,
         scenario_names=list(batch.metadata["scenario_names"]),
         output_path=gallery_path,
+        selected_indices=[1, 1, 1, 1],
     )
 
     assert candidate_result == candidate_path

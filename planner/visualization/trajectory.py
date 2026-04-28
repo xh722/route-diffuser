@@ -46,20 +46,25 @@ def plot_candidate_trajectories(
     route_mask: torch.Tensor | None = None,
     output_path: str | Path | None = None,
     title: str = "Candidate trajectories",
+    selected_index: int | None = None,
 ):
     """Plot multiple sampled trajectories for the first scene in the batch."""
 
     candidate_bundle = _select_prediction_bundle(predicted_samples).detach().cpu()
     target = _select_trajectory(target).detach().cpu()
-    best_index = _best_candidate_index(candidate_bundle, target)
+    highlight_index = (
+        _best_candidate_index(candidate_bundle, target)
+        if selected_index is None
+        else int(selected_index)
+    )
 
     fig, axis = plt.subplots(figsize=(6, 6))
     _plot_route(axis, route_polylines, route_mask, item_index=0)
     for candidate_index in range(candidate_bundle.shape[0]):
-        color = "firebrick" if candidate_index == best_index else "tab:red"
-        alpha = 0.95 if candidate_index == best_index else 0.35
-        linewidth = 2.2 if candidate_index == best_index else 1.2
-        label = "best sample" if candidate_index == best_index else None
+        color = "firebrick" if candidate_index == highlight_index else "tab:red"
+        alpha = 0.95 if candidate_index == highlight_index else 0.35
+        linewidth = 2.2 if candidate_index == highlight_index else 1.2
+        label = "selected sample" if candidate_index == highlight_index else None
         candidate = candidate_bundle[candidate_index]
         axis.plot(
             candidate[:, 0],
@@ -93,6 +98,7 @@ def plot_scenario_gallery(
     output_path: str | Path | None = None,
     title: str = "Scenario gallery",
     max_scenarios: int = 4,
+    selected_indices: list[int] | None = None,
 ):
     """Plot multiple scenes in a compact gallery using the first sampled candidate."""
 
@@ -118,12 +124,16 @@ def plot_scenario_gallery(
         _plot_route(axis, route_polylines, route_mask, item_index=scenario_index)
         scenario_target = target[scenario_index]
         scenario_candidates = predicted_samples[scenario_index]
-        best_index = _best_candidate_index(scenario_candidates, scenario_target)
+        highlight_index = (
+            _best_candidate_index(scenario_candidates, scenario_target)
+            if selected_indices is None or scenario_index >= len(selected_indices)
+            else int(selected_indices[scenario_index])
+        )
 
         for candidate_index in range(scenario_candidates.shape[0]):
             candidate = scenario_candidates[candidate_index]
-            alpha = 0.85 if candidate_index == best_index else 0.25
-            linewidth = 2.0 if candidate_index == best_index else 1.0
+            alpha = 0.85 if candidate_index == highlight_index else 0.25
+            linewidth = 2.0 if candidate_index == highlight_index else 1.0
             axis.plot(candidate[:, 0], candidate[:, 1], color="tab:red", alpha=alpha, linewidth=linewidth)
 
         axis.plot(scenario_target[:, 0], scenario_target[:, 1], color="forestgreen", linewidth=2.0)

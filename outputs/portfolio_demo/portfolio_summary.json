@@ -8,8 +8,9 @@
     "Canonical scene schema for ego, neighbors, lanes, route polylines, and masks.",
     "Route-prior residual diffusion with a conditional 1D U-Net decoder.",
     "Optional multi-resolution pyramid noise inspired by a larger reference diffusion planner.",
+    "Heuristic candidate ranking over route adherence, clearance, and comfort instead of defaulting to the first sample.",
     "Structured synthetic driving scenarios spanning keep-lane, lane changes, and curves.",
-    "End-to-end scripts for training, inference, evaluation, and portfolio artifact generation."
+    "End-to-end scripts for training, inference, scenario-level evaluation, and portfolio artifact generation."
   ],
   "scenario_catalog": [
     {
@@ -138,9 +139,113 @@
     "best_loss": 0.5984
   },
   "open_loop_metrics": {
-    "ade": 1.382,
-    "fde": 1.72,
-    "route_error": 1.082
+    "ade": 1.305,
+    "fde": 1.724,
+    "route_error": 1.061,
+    "progress": 37.403,
+    "max_forward_accel": 28.666,
+    "max_brake": -27.615,
+    "max_abs_lateral_accel": 72.815,
+    "max_abs_jerk": 161.415,
+    "max_abs_yaw_rate": 5.764,
+    "min_clearance": 2.263,
+    "selected_index": 1.052,
+    "selected_score": 27.579,
+    "comfort_violation_rate": 1.0,
+    "collision_rate": 0.375
+  },
+  "candidate_metrics": {
+    "oracle_ade": 1.201,
+    "oracle_fde": 1.036,
+    "oracle_route_error": 0.942,
+    "candidate_final_diversity": 1.908
+  },
+  "scenario_metrics": {
+    "gentle_curve": {
+      "ade": 1.52,
+      "fde": 2.815,
+      "route_error": 1.045,
+      "progress": 37.718,
+      "max_forward_accel": 27.566,
+      "max_brake": -24.511,
+      "max_abs_lateral_accel": 69.998,
+      "max_abs_jerk": 146.91,
+      "max_abs_yaw_rate": 5.692,
+      "min_clearance": 3.404,
+      "selected_index": 0.958,
+      "selected_score": 24.897,
+      "oracle_ade": 1.382,
+      "oracle_fde": 1.737,
+      "oracle_route_error": 0.952,
+      "candidate_final_diversity": 1.89,
+      "comfort_violation_rate": 1.0,
+      "collision_rate": 0.0
+    },
+    "keep_lane": {
+      "ade": 1.211,
+      "fde": 1.306,
+      "route_error": 1.085,
+      "progress": 37.336,
+      "max_forward_accel": 27.811,
+      "max_brake": -27.875,
+      "max_abs_lateral_accel": 78.701,
+      "max_abs_jerk": 160.016,
+      "max_abs_yaw_rate": 6.065,
+      "min_clearance": 2.13,
+      "selected_index": 1.083,
+      "selected_score": 27.91,
+      "oracle_ade": 1.114,
+      "oracle_fde": 0.82,
+      "oracle_route_error": 0.954,
+      "candidate_final_diversity": 2.067,
+      "comfort_violation_rate": 1.0,
+      "collision_rate": 0.375
+    },
+    "lane_change_left": {
+      "ade": 1.247,
+      "fde": 1.36,
+      "route_error": 1.076,
+      "progress": 37.419,
+      "max_forward_accel": 31.258,
+      "max_brake": -28.581,
+      "max_abs_lateral_accel": 78.094,
+      "max_abs_jerk": 170.645,
+      "max_abs_yaw_rate": 5.959,
+      "min_clearance": 2.826,
+      "selected_index": 1.208,
+      "selected_score": 28.778,
+      "oracle_ade": 1.153,
+      "oracle_fde": 0.787,
+      "oracle_route_error": 0.936,
+      "candidate_final_diversity": 1.807,
+      "comfort_violation_rate": 1.0,
+      "collision_rate": 0.125
+    },
+    "lane_change_right": {
+      "ade": 1.243,
+      "fde": 1.415,
+      "route_error": 1.039,
+      "progress": 37.139,
+      "max_forward_accel": 28.029,
+      "max_brake": -29.494,
+      "max_abs_lateral_accel": 64.466,
+      "max_abs_jerk": 168.09,
+      "max_abs_yaw_rate": 5.342,
+      "min_clearance": 0.693,
+      "selected_index": 0.958,
+      "selected_score": 28.731,
+      "oracle_ade": 1.157,
+      "oracle_fde": 0.799,
+      "oracle_route_error": 0.926,
+      "candidate_final_diversity": 1.868,
+      "comfort_violation_rate": 1.0,
+      "collision_rate": 1.0
+    }
+  },
+  "selection": {
+    "strategy": "heuristic_route_clearance_comfort_scoring",
+    "num_samples": 3,
+    "time_delta": 0.3333333333
   },
   "parameter_count": 4870537,
   "stack": [
@@ -152,16 +257,17 @@
   "training_config": {
     "diffusion_noise_mode": "pyramid",
     "diffusion_noise_discount": 0.9,
-    "num_samples": 3
+    "num_samples": 3,
+    "time_delta": 0.3333333333
   },
   "resume_bullets": [
     "Built a route-conditioned autonomous driving planner around a conditional diffusion policy.",
     "Implemented route-prior residual diffusion with a conditional 1D U-Net decoder and iterative denoising sampler.",
-    "Added multi-resolution diffusion noise and multi-sample candidate visualizations inspired by a larger reference planner stack."
+    "Added multi-sample candidate scoring, scenario-level evaluation, and multi-resolution diffusion noise inspired by a larger reference planner stack."
   ],
   "next_extensions": [
     "Swap the synthetic generator with a dataset adapter for logged driving scenes.",
-    "Add richer scene encoders with attention over agents and map elements.",
+    "Replace heuristic candidate scoring with a learned value or reward model.",
     "Introduce reward modeling or RL fine-tuning on top of the planner boundary."
   ],
   "artifacts": {

@@ -17,13 +17,15 @@ evaluation infrastructure. This repository focuses on the part that can be shown
 - canonical scene-schema design for ego, neighbors, lanes, route polylines, and masks
 - a route-prior residual diffusion policy with a conditional 1D U-Net decoder
 - optional multi-resolution pyramid noise inspired by a larger reference diffusion planner
+- heuristic candidate selection over route adherence, clearance, and comfort signals
 - structured synthetic driving scenes that still look like real planning tasks
-- open-loop metrics, checkpointing, candidate trajectory plots, and scenario galleries
+- scenario-wise open-loop metrics, checkpointing, candidate trajectory plots, and scenario galleries
 
 ## What It Demonstrates
 
 - Built a route-conditioned planner that denoises trajectory residuals around a route prior.
 - Implemented DDPM-style training, iterative inference, and first-step anchoring to the current ego state.
+- Scored multiple sampled plans with route, clearance, and comfort heuristics instead of defaulting to the first sample.
 - Modeled keep-lane, lane-change-left, lane-change-right, and curved-road scenarios in a reusable synthetic generator.
 - Packaged the project with training, inference, evaluation, and portfolio demo scripts.
 
@@ -47,7 +49,8 @@ That command produces a compact project showcase in `outputs/portfolio_demo/`:
 ## Demo Outputs
 
 The portfolio demo trains a small planner, samples future trajectories, evaluates open-loop metrics,
-and writes a summary that is easy to reuse in a GitHub project page or resume portfolio.
+and writes a summary with scenario breakdowns, oracle candidate metrics, and selection diagnostics
+that is easy to reuse in a GitHub project page or resume portfolio.
 
 - Main demo script: [`scripts/demo_portfolio.py`](scripts/demo_portfolio.py)
 - Generated summary: [`outputs/portfolio_demo/portfolio_summary.md`](outputs/portfolio_demo/portfolio_summary.md)
@@ -64,6 +67,7 @@ structured scenario generator / future dataset adapter
   -> route prior construction
   -> conditional diffusion decoder (1D U-Net)
   -> iterative trajectory denoising
+  -> candidate scoring and selection
   -> open-loop metrics and debugging plots
 ```
 
@@ -72,6 +76,7 @@ structured scenario generator / future dataset adapter
 - `planner/datasets/`: canonical scene schema and structured synthetic scenarios
 - `planner/models/`: scene encoder and conditional diffusion decoder
 - `planner/diffusion/`: noise schedule and reverse diffusion utilities
+- `planner/inference/`: anchoring plus heuristic candidate scoring
 - `planner/trainers/`: training and evaluation loops
 - `planner/visualization/`: trajectory plotting utilities
 - `scripts/`: train, infer, evaluate, and portfolio demo entry points
@@ -80,13 +85,13 @@ structured scenario generator / future dataset adapter
 
 - Autonomous driving planner focused on route-conditioned future trajectory generation.
 - Conditional diffusion model with a 1D U-Net decoder implemented in PyTorch.
-- Canonical scene interfaces, synthetic scenario generation, open-loop metrics, and visualization included.
+- Canonical scene interfaces, synthetic scenario generation, candidate ranking, scenario-level metrics, and visualization included.
 
 ## Scope
 
 This repo is intentionally planner-first.
 
-- included: scene modeling, diffusion planning, synthetic scenario generation, evaluation, visualization, portfolio artifacts
+- included: scene modeling, diffusion planning, synthetic scenario generation, candidate scoring, evaluation, visualization, portfolio artifacts
 - deferred: proprietary dataset adapters, simulator integration, reward modeling, RL fine-tuning
 
 That tradeoff makes the codebase strong as a public project: it shows system design and modeling

@@ -9,7 +9,7 @@ from planner.datasets import (
     collate_scene_batches,
 )
 from planner.models import DiffusionPlanner, DiffusionPlannerConfig
-from planner.trainers import create_optimizer, train_one_epoch
+from planner.trainers import create_optimizer, evaluate_model_detailed, train_one_epoch
 
 
 def build_batch(batch_size: int = 2):
@@ -60,3 +60,33 @@ def test_one_epoch_training_smoke() -> None:
     )
 
     assert metrics["loss"] > 0.0
+
+
+def test_detailed_evaluation_reports_scenarios() -> None:
+    dataset_config = SyntheticDatasetConfig(num_samples=4)
+    dataset = SyntheticPlanningDataset(dataset_config)
+    dataloader = DataLoader(
+        dataset,
+        batch_size=4,
+        shuffle=False,
+        collate_fn=collate_scene_batches,
+    )
+    model = DiffusionPlanner(DiffusionPlannerConfig(diffusion_steps=4))
+
+    report = evaluate_model_detailed(
+        model=model,
+        dataloader=dataloader,
+        device="cpu",
+        num_samples=2,
+        time_delta=dataset_config.time_delta,
+    )
+
+    assert report["selection"]["num_samples"] == 2
+    assert "overall" in report
+    assert "candidate_set" in report
+    assert set(report["scenarios"]) == {
+        "keep_lane",
+        "lane_change_left",
+        "lane_change_right",
+        "gentle_curve",
+    }

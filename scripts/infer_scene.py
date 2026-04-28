@@ -15,6 +15,7 @@ from planner.datasets import (
     SyntheticPlanningDataset,
     collate_scene_batches,
 )
+from planner.inference import score_trajectory_candidates
 from planner.models import DiffusionPlanner, DiffusionPlannerConfig
 from planner.visualization import plot_trajectory_comparison
 
@@ -44,7 +45,8 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     set_seed(int(infer_config.get("seed", 7)))
 
-    dataset = SyntheticPlanningDataset(SyntheticDatasetConfig.from_mapping(data_config))
+    dataset_config = SyntheticDatasetConfig.from_mapping(data_config)
+    dataset = SyntheticPlanningDataset(dataset_config)
     dataloader = DataLoader(
         dataset,
         batch_size=int(infer_config.get("batch_size", 4)),
@@ -65,11 +67,16 @@ def main() -> None:
     batch = batch.to(device)
     num_samples = int(infer_config.get("num_samples", 3))
     predictions = model.sample(batch, num_samples=num_samples)
+    scored = score_trajectory_candidates(
+        predicted_samples=predictions,
+        scene_batch=batch,
+        time_delta=dataset_config.time_delta,
+    )
 
     prediction_path = output_dir / "predictions.pt"
     torch.save(predictions.cpu(), prediction_path)
     plot_trajectory_comparison(
-        predicted=predictions[:, 0],
+        predicted=scored["selected_trajectories"],
         target=batch.future_ego_trajectory,
         route_polylines=batch.route_lanes,
         route_mask=batch.route_lanes_mask,

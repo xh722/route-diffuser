@@ -17,7 +17,7 @@ from planner.datasets import (
     collate_scene_batches,
 )
 from planner.models import DiffusionPlanner, DiffusionPlannerConfig
-from planner.trainers import evaluate_model
+from planner.trainers import evaluate_model_detailed
 
 
 def parse_args() -> argparse.Namespace:
@@ -45,7 +45,8 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     set_seed(int(infer_config.get("seed", 7)))
 
-    dataset = SyntheticPlanningDataset(SyntheticDatasetConfig.from_mapping(data_config))
+    dataset_config = SyntheticDatasetConfig.from_mapping(data_config)
+    dataset = SyntheticPlanningDataset(dataset_config)
     dataloader = DataLoader(
         dataset,
         batch_size=int(infer_config.get("batch_size", 4)),
@@ -62,11 +63,12 @@ def main() -> None:
         checkpoint = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(checkpoint["model_state_dict"])
 
-    metrics = evaluate_model(
+    metrics = evaluate_model_detailed(
         model=model,
         dataloader=dataloader,
         device=device,
         num_samples=int(infer_config.get("num_samples", 1)),
+        time_delta=dataset_config.time_delta,
     )
     metrics_path = output_dir / "metrics.json"
     metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")

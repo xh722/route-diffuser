@@ -16,8 +16,9 @@ from planner.datasets import (
     SyntheticPlanningDataset,
     collate_scene_batches,
 )
+from planner.inference import score_trajectory_candidates
 from planner.models import DiffusionPlanner, DiffusionPlannerConfig
-from planner.trainers import create_optimizer, evaluate_model, train_one_epoch
+from planner.trainers import create_optimizer, evaluate_model_detailed, train_one_epoch
 from planner.visualization import (
     plot_candidate_trajectories,
     plot_scenario_gallery,
@@ -55,6 +56,12 @@ def round_metrics(metrics: dict[str, float]) -> dict[str, float]:
     return {key: round(value, 3) for key, value in metrics.items()}
 
 
+def round_nested_metrics(
+    metrics: dict[str, dict[str, float]],
+) -> dict[str, dict[str, float]]:
+    return {key: round_metrics(value) for key, value in metrics.items()}
+
+
 def build_portfolio_markdown(summary: dict[str, object]) -> str:
     lines = [
         f"# {summary['project_title']}",
@@ -85,6 +92,34 @@ def build_portfolio_markdown(summary: dict[str, object]) -> str:
             f"- ADE: {summary['open_loop_metrics']['ade']}",
             f"- FDE: {summary['open_loop_metrics']['fde']}",
             f"- Route Error: {summary['open_loop_metrics']['route_error']}",
+            f"- Progress: {summary['open_loop_metrics']['progress']}",
+            f"- Min Clearance: {summary['open_loop_metrics']['min_clearance']}",
+            f"- Collision Rate: {summary['open_loop_metrics']['collision_rate']}",
+            f"- Comfort Violation Rate: {summary['open_loop_metrics']['comfort_violation_rate']}",
+            "",
+            "## Candidate Set Metrics",
+            f"- Oracle ADE: {summary['candidate_metrics']['oracle_ade']}",
+            f"- Oracle FDE: {summary['candidate_metrics']['oracle_fde']}",
+            f"- Oracle Route Error: {summary['candidate_metrics']['oracle_route_error']}",
+            f"- Final-State Diversity: {summary['candidate_metrics']['candidate_final_diversity']}",
+            "",
+            "## Scenario Breakdown",
+        ]
+    )
+    lines.extend(
+        [
+            f"- `{name}`: ADE {metrics['ade']}, FDE {metrics['fde']}, Route Error {metrics['route_error']}"
+            for name, metrics in summary["scenario_metrics"].items()
+        ]
+    )
+    lines.extend(
+        [
+            "",
+            "## Selection Strategy",
+            f"- Strategy: `{summary['selection']['strategy']}`",
+            f"- Candidate Samples: {summary['selection']['num_samples']}",
+            f"- Mean Selected Index: {summary['open_loop_metrics']['selected_index']}",
+            f"- Mean Selected Score: {summary['open_loop_metrics']['selected_score']}",
             "",
             "## Resume Bullets",
         ]
@@ -119,7 +154,8 @@ def main() -> None:
     seed = int(train_config.get("seed", infer_config.get("seed", 7)))
     set_seed(seed)
 
-    dataset = SyntheticPlanningDataset(SyntheticDatasetConfig.from_mapping(data_config))
+    dataset_config = SyntheticDatasetConfig.from_mapping(data_config)
+    dataset = SyntheticPlanningDataset(dataset_config)
     train_dataloader = DataLoader(
         dataset,
         batch_size=int(train_config.get("batch_size", 8)),
@@ -161,11 +197,17 @@ def main() -> None:
     predictions = model.sample(
         preview_batch, num_samples=int(infer_config.get("num_samples", 3))
     )
+    scored_preview = score_trajectory_candidates(
+        predicted_samples=predictions,
+        scene_batch=preview_batch,
+        time_delta=dataset_config.time_delta,
+    )
+    selected_preview = scored_preview["selected_trajectories"]
     predictions_path = output_dir / "predictions.pt"
     torch.save(predictions.cpu(), predictions_path)
 
     plot_trajectory_comparison(
-        predicted=predictions[:, 0],
+        predicted=selected_preview,
         target=preview_batch.future_ego_trajectory,
         route_polylines=preview_batch.route_lanes,
         route_mask=preview_batch.route_lanes_mask,
@@ -179,6 +221,7 @@ def main() -> None:
         route_mask=preview_batch.route_lanes_mask,
         output_path=output_dir / "candidate_trajectories.png",
         title="RouteDiffuser Candidate Trajectories",
+        selected_index=int(scored_preview["selected_indices"][0].item()),
     )
     plot_scenario_gallery(
         predicted_samples=predictions,
@@ -188,17 +231,21 @@ def main() -> None:
         scenario_names=list(preview_batch.metadata.get("scenario_names", [])),
         output_path=output_dir / "scenario_gallery.png",
         title="RouteDiffuser Scenario Gallery",
+        selected_indices=scored_preview["selected_indices"].detach().cpu().tolist(),
     )
 
-    metrics = evaluate_model(
+    evaluation_report = evaluate_model_detailed(
         model=model,
         dataloader=eval_dataloader,
         device=device,
-        num_samples=1,
+        num_samples=int(infer_config.get("num_samples", 3)),
+        time_delta=dataset_config.time_delta,
     )
 
     scenario_names = list(preview_batch.metadata.get("scenario_names", []))
-    rounded_metrics = round_metrics(metrics)
+    rounded_metrics = round_metrics(evaluation_report["overall"])
+    rounded_candidate_metrics = round_metrics(evaluation_report["candidate_set"])
+    rounded_scenarios = round_nested_metrics(evaluation_report["scenarios"])
     training_summary = {
         "epochs": int(args.epochs),
         "initial_loss": round(training_curve[0]["loss"], 4),
@@ -220,8 +267,9 @@ def main() -> None:
             "Canonical scene schema for ego, neighbors, lanes, route polylines, and masks.",
             "Route-prior residual diffusion with a conditional 1D U-Net decoder.",
             "Optional multi-resolution pyramid noise inspired by a larger reference diffusion planner.",
+            "Heuristic candidate ranking over route adherence, clearance, and comfort instead of defaulting to the first sample.",
             "Structured synthetic driving scenarios spanning keep-lane, lane changes, and curves.",
-            "End-to-end scripts for training, inference, evaluation, and portfolio artifact generation.",
+            "End-to-end scripts for training, inference, scenario-level evaluation, and portfolio artifact generation.",
         ],
         "scenario_catalog": [
             {"name": name, "description": SCENARIO_DESCRIPTIONS.get(name, name)}
@@ -230,21 +278,25 @@ def main() -> None:
         "training_curve": training_curve,
         "training_summary": training_summary,
         "open_loop_metrics": rounded_metrics,
+        "candidate_metrics": rounded_candidate_metrics,
+        "scenario_metrics": rounded_scenarios,
+        "selection": evaluation_report["selection"],
         "parameter_count": sum(parameter.numel() for parameter in model.parameters()),
         "stack": ["Python", "PyTorch", "Diffusion Models", "Trajectory Planning"],
         "training_config": {
             "diffusion_noise_mode": planner_config.diffusion_noise_mode,
             "diffusion_noise_discount": planner_config.diffusion_noise_discount,
             "num_samples": int(infer_config.get("num_samples", 3)),
+            "time_delta": dataset_config.time_delta,
         },
         "resume_bullets": [
             "Built a route-conditioned autonomous driving planner around a conditional diffusion policy.",
             "Implemented route-prior residual diffusion with a conditional 1D U-Net decoder and iterative denoising sampler.",
-            "Added multi-resolution diffusion noise and multi-sample candidate visualizations inspired by a larger reference planner stack.",
+            "Added multi-sample candidate scoring, scenario-level evaluation, and multi-resolution diffusion noise inspired by a larger reference planner stack.",
         ],
         "next_extensions": [
             "Swap the synthetic generator with a dataset adapter for logged driving scenes.",
-            "Add richer scene encoders with attention over agents and map elements.",
+            "Replace heuristic candidate scoring with a learned value or reward model.",
             "Introduce reward modeling or RL fine-tuning on top of the planner boundary.",
         ],
         "artifacts": {

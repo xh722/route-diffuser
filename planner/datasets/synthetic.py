@@ -34,6 +34,7 @@ class SyntheticDatasetConfig:
     lane_dim: int = 4
     lane_width: float = 3.6
     longitudinal_step: float = 2.5
+    time_delta: float = 1.0 / 3.0
     seed: int = 7
 
     @classmethod

@@ -9,4 +9,5 @@ polyline_points: 32
 lane_dim: 4
 lane_width: 3.6
 longitudinal_step: 2.5
+time_delta: 0.3333333333
 seed: 7
