@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility wrapper for the public `demo_planner.py` entry point."""
+"""Public portfolio demo entry point for RouteDiffuser."""
 
 from planner.cli.demo_planner import main
 

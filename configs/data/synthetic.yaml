@@ -1,3 +1,6 @@
+dataset_type: synthetic
+dataset_name: route_diffuser_synthetic
+manifest_path: ""
 num_samples: 96
 history_steps: 8
 future_horizon: 16

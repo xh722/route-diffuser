@@ -33,18 +33,48 @@ evaluation infrastructure. This repository focuses on the part that can be shown
 
 ```bash
 pip install -e .[dev]
-python scripts/demo_portfolio.py
+python scripts/prepare_dataset.py --output outputs/manifests/route_diffuser_synthetic_train.json
+python scripts/demo_planner.py
 ```
+
+Installed command aliases are also available after `pip install -e .[dev]`:
+
+- `route-diffuser-prepare`
+- `route-diffuser-train`
+- `route-diffuser-infer`
+- `route-diffuser-eval`
+- `route-diffuser-demo`
+
+Full command reference: [`docs/commands.md`](docs/commands.md)
 
 That command produces a compact project showcase in `outputs/portfolio_demo/`:
 
 - `prediction_plot.png`
 - `candidate_trajectories.png`
 - `scenario_gallery.png`
+- `evaluation_report.json`
+- `evaluation_report.md`
 - `portfolio_summary.json`
 - `portfolio_summary.md`
 - `demo_checkpoint.pt`
 - `predictions.pt`
+
+## Command Surface
+
+Public entry points:
+
+- `python scripts/prepare_dataset.py`
+- `python scripts/train_planner.py`
+- `python scripts/infer_planner.py`
+- `python scripts/eval_planner.py`
+- `python scripts/demo_planner.py`
+
+Compatibility wrappers:
+
+- `python scripts/train_diffusion.py`
+- `python scripts/infer_scene.py`
+- `python scripts/eval_diffusion.py`
+- `python scripts/demo_portfolio.py`
 
 ## Demo Outputs
 
@@ -52,11 +82,15 @@ The portfolio demo trains a small planner, samples future trajectories, evaluate
 and writes a summary with scenario breakdowns, oracle candidate metrics, and selection diagnostics
 that is easy to reuse in a GitHub project page or resume portfolio.
 
-- Main demo script: [`scripts/demo_portfolio.py`](scripts/demo_portfolio.py)
+- Delivery roadmap: [`ROADMAP.md`](ROADMAP.md)
+- Dataset preparation: [`scripts/prepare_dataset.py`](scripts/prepare_dataset.py)
+- Main demo script: [`scripts/demo_planner.py`](scripts/demo_planner.py)
 - Generated summary: [`outputs/portfolio_demo/portfolio_summary.md`](outputs/portfolio_demo/portfolio_summary.md)
 - Generated JSON: [`outputs/portfolio_demo/portfolio_summary.json`](outputs/portfolio_demo/portfolio_summary.json)
+- Evaluation report: [`outputs/portfolio_demo/evaluation_report.md`](outputs/portfolio_demo/evaluation_report.md)
 - Candidate trajectories: [`outputs/portfolio_demo/candidate_trajectories.png`](outputs/portfolio_demo/candidate_trajectories.png)
 - Scenario gallery: [`outputs/portfolio_demo/scenario_gallery.png`](outputs/portfolio_demo/scenario_gallery.png)
+- Legacy script names such as `demo_portfolio.py`, `train_diffusion.py`, `infer_scene.py`, and `eval_diffusion.py` remain as compatibility wrappers.
 
 ## Architecture
 
@@ -79,7 +113,9 @@ structured scenario generator / future dataset adapter
 - `planner/inference/`: anchoring plus heuristic candidate scoring
 - `planner/trainers/`: training and evaluation loops
 - `planner/visualization/`: trajectory plotting utilities
-- `scripts/`: train, infer, evaluate, and portfolio demo entry points
+- `scripts/`: dataset preparation, train, infer, evaluate, and portfolio demo entry points
+- `docs/commands.md`: public command manual
+- `ROADMAP.md`: execution plan for completing the public project
 
 ## Resume-Friendly Project Framing
 

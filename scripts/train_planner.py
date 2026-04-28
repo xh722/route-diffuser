@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility wrapper for the public `train_planner.py` entry point."""
+"""Public training entry point for RouteDiffuser."""
 
 from planner.cli.train_planner import main
 

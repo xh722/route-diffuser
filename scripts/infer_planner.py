@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility wrapper for the public `infer_planner.py` entry point."""
+"""Public inference entry point for RouteDiffuser."""
 
 from planner.cli.infer_planner import main
 

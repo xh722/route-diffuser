@@ -79,12 +79,16 @@ def test_detailed_evaluation_reports_scenarios() -> None:
         device="cpu",
         num_samples=2,
         time_delta=dataset_config.time_delta,
+        dataset_name=dataset_config.dataset_name,
+        dataset_type="synthetic",
     )
 
-    assert report["selection"]["num_samples"] == 2
-    assert "overall" in report
-    assert "candidate_set" in report
-    assert set(report["scenarios"]) == {
+    assert report.selection.num_samples == 2
+    assert report.dataset.name == dataset_config.dataset_name
+    assert report.dataset.dataset_type == "synthetic"
+    assert "ade" in report.overall_metrics
+    assert "oracle_ade" in report.candidate_set_metrics
+    assert set(report.scenario_metrics) == {
         "keep_lane",
         "lane_change_left",
         "lane_change_right",

@@ -15,6 +15,13 @@ dependencies = [
   "torch>=2.2",
 ]
 
+[project.scripts]
+route-diffuser-prepare = "planner.cli.prepare_dataset:main"
+route-diffuser-train = "planner.cli.train_planner:main"
+route-diffuser-infer = "planner.cli.infer_planner:main"
+route-diffuser-eval = "planner.cli.eval_planner:main"
+route-diffuser-demo = "planner.cli.demo_planner:main"
+
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 

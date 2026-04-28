@@ -12,6 +12,7 @@ from planner.datasets.schema import CanonicalSceneBatch
 from planner.inference import score_trajectory_candidates
 from planner.metrics.trajectory import candidate_set_metrics, compute_open_loop_metrics
 from planner.models.diffusion_planner import DiffusionPlanner
+from planner.reports import EvaluationDatasetInfo, EvaluationReport, EvaluationSelection
 
 
 def create_optimizer(
@@ -85,7 +86,13 @@ def evaluate_model_detailed(
     device: torch.device | str,
     num_samples: int = 1,
     time_delta: float = 1.0 / 3.0,
-) -> dict[str, object]:
+    project_name: str = "RouteDiffuser",
+    dataset_name: str = "unknown_dataset",
+    dataset_type: str = "unknown",
+    split: str = "eval",
+    artifacts: dict[str, str] | None = None,
+    metadata: dict[str, object] | None = None,
+) -> EvaluationReport:
     """Evaluate the planner and return a planning-style report."""
 
     model.eval()
@@ -153,19 +160,27 @@ def evaluate_model_detailed(
     if batch_count == 0:
         raise ValueError("evaluation dataloader produced zero batches")
 
-    return {
-        "selection": {
-            "strategy": "heuristic_route_clearance_comfort_scoring",
-            "num_samples": int(num_samples),
-            "time_delta": float(time_delta),
-        },
-        "overall": _normalize_metric_names(_reduce_metric_store(overall_store)),
-        "candidate_set": _reduce_metric_store(candidate_store),
-        "scenarios": {
+    return EvaluationReport(
+        project_name=project_name,
+        dataset=EvaluationDatasetInfo(
+            name=dataset_name,
+            dataset_type=dataset_type,
+            split=split,
+        ),
+        selection=EvaluationSelection(
+            strategy="heuristic_route_clearance_comfort_scoring",
+            num_samples=int(num_samples),
+            time_delta=float(time_delta),
+        ),
+        overall_metrics=_normalize_metric_names(_reduce_metric_store(overall_store)),
+        candidate_set_metrics=_reduce_metric_store(candidate_store),
+        scenario_metrics={
             scenario_name: _normalize_metric_names(_reduce_metric_store(metrics))
             for scenario_name, metrics in sorted(scenario_store.items())
         },
-    }
+        artifacts={} if artifacts is None else artifacts,
+        metadata={} if metadata is None else metadata,
+    )
 
 
 @torch.no_grad()
@@ -185,7 +200,4 @@ def evaluate_model(
         num_samples=num_samples,
         time_delta=time_delta,
     )
-    return {
-        **report["overall"],
-        **report["candidate_set"],
-    }
+    return report.all_metrics()

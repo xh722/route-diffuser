@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility wrapper for the public `eval_planner.py` entry point."""
+"""Public evaluation entry point for RouteDiffuser."""
 
 from planner.cli.eval_planner import main
 
