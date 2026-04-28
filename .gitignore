@@ -13,5 +13,7 @@ outputs/*
 !outputs/portfolio_demo/
 outputs/portfolio_demo/*
 !outputs/portfolio_demo/prediction_plot.png
+!outputs/portfolio_demo/candidate_trajectories.png
+!outputs/portfolio_demo/scenario_gallery.png
 !outputs/portfolio_demo/portfolio_summary.json
 !outputs/portfolio_demo/portfolio_summary.md

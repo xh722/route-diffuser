@@ -7,6 +7,7 @@ show the planner core of an autonomous driving system in a form that reads well 
 resume: scene representation, conditional trajectory generation, evaluation, and visual artifacts.
 
 ![RouteDiffuser demo plot](outputs/portfolio_demo/prediction_plot.png)
+![RouteDiffuser scenario gallery](outputs/portfolio_demo/scenario_gallery.png)
 
 ## Why This Repo Exists
 
@@ -15,8 +16,9 @@ evaluation infrastructure. This repository focuses on the part that can be shown
 
 - canonical scene-schema design for ego, neighbors, lanes, route polylines, and masks
 - a route-prior residual diffusion policy with a conditional 1D U-Net decoder
+- optional multi-resolution pyramid noise inspired by a larger reference diffusion planner
 - structured synthetic driving scenes that still look like real planning tasks
-- open-loop metrics, checkpointing, and plotting for inspection and storytelling
+- open-loop metrics, checkpointing, candidate trajectory plots, and scenario galleries
 
 ## What It Demonstrates
 
@@ -35,6 +37,8 @@ python scripts/demo_portfolio.py
 That command produces a compact project showcase in `outputs/portfolio_demo/`:
 
 - `prediction_plot.png`
+- `candidate_trajectories.png`
+- `scenario_gallery.png`
 - `portfolio_summary.json`
 - `portfolio_summary.md`
 - `demo_checkpoint.pt`
@@ -48,6 +52,8 @@ and writes a summary that is easy to reuse in a GitHub project page or resume po
 - Main demo script: [`scripts/demo_portfolio.py`](scripts/demo_portfolio.py)
 - Generated summary: [`outputs/portfolio_demo/portfolio_summary.md`](outputs/portfolio_demo/portfolio_summary.md)
 - Generated JSON: [`outputs/portfolio_demo/portfolio_summary.json`](outputs/portfolio_demo/portfolio_summary.json)
+- Candidate trajectories: [`outputs/portfolio_demo/candidate_trajectories.png`](outputs/portfolio_demo/candidate_trajectories.png)
+- Scenario gallery: [`outputs/portfolio_demo/scenario_gallery.png`](outputs/portfolio_demo/scenario_gallery.png)
 
 ## Architecture
 

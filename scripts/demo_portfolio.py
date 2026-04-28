@@ -18,7 +18,11 @@ from planner.datasets import (
 )
 from planner.models import DiffusionPlanner, DiffusionPlannerConfig
 from planner.trainers import create_optimizer, evaluate_model, train_one_epoch
-from planner.visualization import plot_trajectory_comparison
+from planner.visualization import (
+    plot_candidate_trajectories,
+    plot_scenario_gallery,
+    plot_trajectory_comparison,
+)
 
 PROJECT_TITLE = "RouteDiffuser"
 PROJECT_SUBTITLE = "Autonomous driving trajectory planning with a route-conditioned diffusion policy"
@@ -93,6 +97,8 @@ def build_portfolio_markdown(summary: dict[str, object]) -> str:
             f"- Checkpoint: `{summary['artifacts']['checkpoint']}`",
             f"- Predictions: `{summary['artifacts']['predictions']}`",
             f"- Plot: `{summary['artifacts']['plot']}`",
+            f"- Candidate Plot: `{summary['artifacts']['candidate_plot']}`",
+            f"- Scenario Gallery: `{summary['artifacts']['scenario_gallery']}`",
             f"- JSON Summary: `{summary['artifacts']['json_summary']}`",
             f"- Markdown Summary: `{summary['artifacts']['markdown_summary']}`",
         ]
@@ -166,6 +172,23 @@ def main() -> None:
         output_path=output_dir / "prediction_plot.png",
         title="RouteDiffuser Demo Trajectory Comparison",
     )
+    plot_candidate_trajectories(
+        predicted_samples=predictions,
+        target=preview_batch.future_ego_trajectory,
+        route_polylines=preview_batch.route_lanes,
+        route_mask=preview_batch.route_lanes_mask,
+        output_path=output_dir / "candidate_trajectories.png",
+        title="RouteDiffuser Candidate Trajectories",
+    )
+    plot_scenario_gallery(
+        predicted_samples=predictions,
+        target=preview_batch.future_ego_trajectory,
+        route_polylines=preview_batch.route_lanes,
+        route_mask=preview_batch.route_lanes_mask,
+        scenario_names=list(preview_batch.metadata.get("scenario_names", [])),
+        output_path=output_dir / "scenario_gallery.png",
+        title="RouteDiffuser Scenario Gallery",
+    )
 
     metrics = evaluate_model(
         model=model,
@@ -196,6 +219,7 @@ def main() -> None:
         "highlights": [
             "Canonical scene schema for ego, neighbors, lanes, route polylines, and masks.",
             "Route-prior residual diffusion with a conditional 1D U-Net decoder.",
+            "Optional multi-resolution pyramid noise inspired by a larger reference diffusion planner.",
             "Structured synthetic driving scenarios spanning keep-lane, lane changes, and curves.",
             "End-to-end scripts for training, inference, evaluation, and portfolio artifact generation.",
         ],
@@ -208,10 +232,15 @@ def main() -> None:
         "open_loop_metrics": rounded_metrics,
         "parameter_count": sum(parameter.numel() for parameter in model.parameters()),
         "stack": ["Python", "PyTorch", "Diffusion Models", "Trajectory Planning"],
+        "training_config": {
+            "diffusion_noise_mode": planner_config.diffusion_noise_mode,
+            "diffusion_noise_discount": planner_config.diffusion_noise_discount,
+            "num_samples": int(infer_config.get("num_samples", 3)),
+        },
         "resume_bullets": [
             "Built a route-conditioned autonomous driving planner around a conditional diffusion policy.",
             "Implemented route-prior residual diffusion with a conditional 1D U-Net decoder and iterative denoising sampler.",
-            "Designed structured synthetic scenarios and open-loop metrics to demonstrate planning behavior without proprietary data.",
+            "Added multi-resolution diffusion noise and multi-sample candidate visualizations inspired by a larger reference planner stack.",
         ],
         "next_extensions": [
             "Swap the synthetic generator with a dataset adapter for logged driving scenes.",
@@ -222,6 +251,8 @@ def main() -> None:
             "checkpoint": str(checkpoint_path),
             "predictions": str(predictions_path),
             "plot": str(output_dir / "prediction_plot.png"),
+            "candidate_plot": str(output_dir / "candidate_trajectories.png"),
+            "scenario_gallery": str(output_dir / "scenario_gallery.png"),
             "json_summary": str(output_dir / "portfolio_summary.json"),
             "markdown_summary": str(output_dir / "portfolio_summary.md"),
         },

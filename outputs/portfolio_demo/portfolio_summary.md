@@ -7,6 +7,7 @@ A planner-core autonomous driving project that demonstrates canonical scene mode
 ## Highlights
 - Canonical scene schema for ego, neighbors, lanes, route polylines, and masks.
 - Route-prior residual diffusion with a conditional 1D U-Net decoder.
+- Optional multi-resolution pyramid noise inspired by a larger reference diffusion planner.
 - Structured synthetic driving scenarios spanning keep-lane, lane changes, and curves.
 - End-to-end scripts for training, inference, evaluation, and portfolio artifact generation.
 
@@ -17,18 +18,20 @@ A planner-core autonomous driving project that demonstrates canonical scene mode
 - `gentle_curve`: Route tracking on a gradually curving road segment.
 
 ## Open-Loop Metrics
-- ADE: 0.877
-- FDE: 1.474
-- Route Error: 0.672
+- ADE: 1.382
+- FDE: 1.72
+- Route Error: 1.082
 
 ## Resume Bullets
 - Built a route-conditioned autonomous driving planner around a conditional diffusion policy.
 - Implemented route-prior residual diffusion with a conditional 1D U-Net decoder and iterative denoising sampler.
-- Designed structured synthetic scenarios and open-loop metrics to demonstrate planning behavior without proprietary data.
+- Added multi-resolution diffusion noise and multi-sample candidate visualizations inspired by a larger reference planner stack.
 
 ## Artifacts
 - Checkpoint: `outputs/portfolio_demo/demo_checkpoint.pt`
 - Predictions: `outputs/portfolio_demo/predictions.pt`
 - Plot: `outputs/portfolio_demo/prediction_plot.png`
+- Candidate Plot: `outputs/portfolio_demo/candidate_trajectories.png`
+- Scenario Gallery: `outputs/portfolio_demo/scenario_gallery.png`
 - JSON Summary: `outputs/portfolio_demo/portfolio_summary.json`
 - Markdown Summary: `outputs/portfolio_demo/portfolio_summary.md`

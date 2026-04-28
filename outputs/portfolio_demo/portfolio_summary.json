@@ -7,6 +7,7 @@
   "highlights": [
     "Canonical scene schema for ego, neighbors, lanes, route polylines, and masks.",
     "Route-prior residual diffusion with a conditional 1D U-Net decoder.",
+    "Optional multi-resolution pyramid noise inspired by a larger reference diffusion planner.",
     "Structured synthetic driving scenarios spanning keep-lane, lane changes, and curves.",
     "End-to-end scripts for training, inference, evaluation, and portfolio artifact generation."
   ],
@@ -31,127 +32,132 @@
   "training_curve": [
     {
       "epoch": 1.0,
-      "loss": 1.099164495865504,
+      "loss": 1.1535833328962326,
       "num_batches": 12.0
     },
     {
       "epoch": 2.0,
-      "loss": 1.0099780360857646,
+      "loss": 1.000396966934204,
       "num_batches": 12.0
     },
     {
       "epoch": 3.0,
-      "loss": 1.006543606519699,
+      "loss": 1.0091967284679413,
       "num_batches": 12.0
     },
     {
       "epoch": 4.0,
-      "loss": 1.0036841084559758,
+      "loss": 1.0011488646268845,
       "num_batches": 12.0
     },
     {
       "epoch": 5.0,
-      "loss": 1.0009167244036992,
+      "loss": 0.9826315194368362,
       "num_batches": 12.0
     },
     {
       "epoch": 6.0,
-      "loss": 0.9533128837744395,
+      "loss": 0.9394430965185165,
       "num_batches": 12.0
     },
     {
       "epoch": 7.0,
-      "loss": 0.9575725694497427,
+      "loss": 0.8994605193535486,
       "num_batches": 12.0
     },
     {
       "epoch": 8.0,
-      "loss": 0.9156590104103088,
+      "loss": 0.832475279768308,
       "num_batches": 12.0
     },
     {
       "epoch": 9.0,
-      "loss": 0.8929551839828491,
+      "loss": 0.7841697831948599,
       "num_batches": 12.0
     },
     {
       "epoch": 10.0,
-      "loss": 0.8139702677726746,
+      "loss": 0.7769468327363332,
       "num_batches": 12.0
     },
     {
       "epoch": 11.0,
-      "loss": 0.763787845770518,
+      "loss": 0.7479568123817444,
       "num_batches": 12.0
     },
     {
       "epoch": 12.0,
-      "loss": 0.7033967773119608,
+      "loss": 0.7262566735347112,
       "num_batches": 12.0
     },
     {
       "epoch": 13.0,
-      "loss": 0.6451995770136515,
+      "loss": 0.7132774442434311,
       "num_batches": 12.0
     },
     {
       "epoch": 14.0,
-      "loss": 0.5846859663724899,
+      "loss": 0.6935728887716929,
       "num_batches": 12.0
     },
     {
       "epoch": 15.0,
-      "loss": 0.5186368922392527,
+      "loss": 0.6837288389603297,
       "num_batches": 12.0
     },
     {
       "epoch": 16.0,
-      "loss": 0.5023508394757906,
+      "loss": 0.6405691107114156,
       "num_batches": 12.0
     },
     {
       "epoch": 17.0,
-      "loss": 0.4686262557903926,
+      "loss": 0.6498872886101404,
       "num_batches": 12.0
     },
     {
       "epoch": 18.0,
-      "loss": 0.4163644959529241,
+      "loss": 0.6430638531843821,
       "num_batches": 12.0
     },
     {
       "epoch": 19.0,
-      "loss": 0.3767103801170985,
+      "loss": 0.6320642083883286,
       "num_batches": 12.0
     },
     {
       "epoch": 20.0,
-      "loss": 0.37632378687461215,
+      "loss": 0.5983923971652985,
       "num_batches": 12.0
     }
   ],
   "training_summary": {
     "epochs": 20,
-    "initial_loss": 1.0992,
-    "final_loss": 0.3763,
-    "best_loss": 0.3763
+    "initial_loss": 1.1536,
+    "final_loss": 0.5984,
+    "best_loss": 0.5984
   },
   "open_loop_metrics": {
-    "ade": 0.877,
-    "fde": 1.474,
-    "route_error": 0.672
+    "ade": 1.382,
+    "fde": 1.72,
+    "route_error": 1.082
   },
-  "parameter_count": 4495238,
+  "parameter_count": 4870537,
   "stack": [
     "Python",
     "PyTorch",
     "Diffusion Models",
     "Trajectory Planning"
   ],
+  "training_config": {
+    "diffusion_noise_mode": "pyramid",
+    "diffusion_noise_discount": 0.9,
+    "num_samples": 3
+  },
   "resume_bullets": [
     "Built a route-conditioned autonomous driving planner around a conditional diffusion policy.",
     "Implemented route-prior residual diffusion with a conditional 1D U-Net decoder and iterative denoising sampler.",
-    "Designed structured synthetic scenarios and open-loop metrics to demonstrate planning behavior without proprietary data."
+    "Added multi-resolution diffusion noise and multi-sample candidate visualizations inspired by a larger reference planner stack."
   ],
   "next_extensions": [
     "Swap the synthetic generator with a dataset adapter for logged driving scenes.",
@@ -162,6 +168,8 @@
     "checkpoint": "outputs/portfolio_demo/demo_checkpoint.pt",
     "predictions": "outputs/portfolio_demo/predictions.pt",
     "plot": "outputs/portfolio_demo/prediction_plot.png",
+    "candidate_plot": "outputs/portfolio_demo/candidate_trajectories.png",
+    "scenario_gallery": "outputs/portfolio_demo/scenario_gallery.png",
     "json_summary": "outputs/portfolio_demo/portfolio_summary.json",
     "markdown_summary": "outputs/portfolio_demo/portfolio_summary.md"
   }

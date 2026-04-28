@@ -9,6 +9,7 @@ import torch
 from torch import nn
 
 from planner.datasets.schema import CanonicalSceneBatch
+from planner.diffusion.noise import sample_diffusion_noise
 from planner.diffusion.schedule import DiffusionSchedule
 from planner.diffusion.utils import ddpm_step, q_sample
 from planner.inference.anchoring import anchor_first_timestep
@@ -34,6 +35,8 @@ class DiffusionPlannerConfig:
     future_horizon: int = 16
     route_query_step: float = 2.5
     use_route_prior: bool = True
+    diffusion_noise_mode: str = "pyramid"
+    diffusion_noise_discount: float = 0.9
     diffusion_steps: int = 32
     beta_start: float = 1e-4
     beta_end: float = 2e-2
@@ -147,7 +150,11 @@ class DiffusionPlanner(nn.Module):
             dtype=torch.long,
         )
         if noise is None:
-            noise = torch.randn_like(target)
+            noise = sample_diffusion_noise(
+                target,
+                mode=self.config.diffusion_noise_mode,
+                pyramid_discount=self.config.diffusion_noise_discount,
+            )
         noise = noise.clone()
         noise[:, 0] = 0.0
         noisy_target = q_sample(target, timesteps, self.schedule, noise=noise)

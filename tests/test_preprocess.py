@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import torch
 
+from planner.diffusion import pyramid_noise_like
 from planner.preprocess import (
     MinMaxNormalizer,
     build_route_trajectory_prior,
@@ -54,3 +55,11 @@ def test_route_trajectory_prior_matches_synthetic_scene() -> None:
     )
     assert torch.allclose(prior[:, 0], batch.ego_current_state)
     assert float(xy_error.mean()) < 1.5
+
+
+def test_pyramid_noise_like_matches_shape_and_is_finite() -> None:
+    trajectory = torch.zeros(2, 16, 6)
+    noise = pyramid_noise_like(trajectory)
+
+    assert noise.shape == trajectory.shape
+    assert torch.isfinite(noise).all()
