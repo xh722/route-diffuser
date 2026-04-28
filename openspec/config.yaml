@@ -1,0 +1,77 @@
+schema: spec-driven
+
+context: |
+  Project: nn_planner
+
+  Purpose:
+  nn_planner is an autonomous driving planning project centered on an offline neural planner.
+  The first target is a route-conditioned diffusion planner that can ingest ego, neighbor,
+  lane, and route context from structured driving scenes, generate a feasible future ego
+  trajectory in local coordinates, train and evaluate in an offline open-loop workflow, and
+  leave clear extension points for reward modeling, reinforcement learning, and closed-loop
+  simulation.
+
+  Tech stack:
+  - Python 3.10+
+  - PyTorch and NumPy
+  - YAML and structured config objects
+  - Matplotlib
+  - TensorBoard or CSV logs
+  - Future extensions may use C++/pybind11 and simulator adapters
+
+  Project conventions:
+  - Follow PEP 8 and keep public APIs typed
+  - Prefer small modules with explicit inputs and outputs
+  - Keep tensor shape assumptions documented at module boundaries
+  - Use ASCII by default in source files and config files
+  - Use a canonical scene schema between dataset adapters and the planner core
+  - Keep preprocessing, encoding, diffusion decoding, training, evaluation, reward, and RL
+    in separate modules
+  - Keep experiments config-driven
+  - Keep the MVP offline-first and deterministic for debugging
+
+  Domain context:
+  - The planner consumes scene-centric tensors that may include ego current state, neighbor
+    history and optional future labels, lane polylines, route polylines, masks, semantic
+    classes, and traffic context.
+  - The planner predicts a future ego trajectory over a fixed horizon.
+  - Heading should be represented internally in a continuous form such as cos/sin and only
+    converted back to angles at output boundaries.
+  - Key concepts include scene, canonical local coordinates, diffusion trajectory,
+    open-loop evaluation, and future closed-loop extension.
+
+  MVP constraints:
+  - Phase 1 focuses on offline diffusion planning only
+  - Reinforcement learning, C++ reward engines, and simulator rollouts are out of scope
+  - The first generated trajectory point must remain anchored to the current ego state
+  - The project should support multiple datasets through adapters rather than hard-coding
+    one source format into the core planner
+
+  Performance and reproducibility:
+  - Training and inference must run on Linux with a single-GPU baseline path
+  - The same config and seed should reproduce comparable outputs and metrics
+  - Visualization and metrics must be strong enough to debug scene failures before RL work
+
+  Suggested package layout:
+  - configs/
+  - planner/datasets
+  - planner/preprocess
+  - planner/models
+  - planner/diffusion
+  - planner/losses
+  - planner/metrics
+  - planner/trainers
+  - planner/inference
+  - planner/visualization
+  - reward/
+  - rl/
+  - simulator/
+  - scripts/
+  - tests/
+
+  External dependencies:
+  - dataset adapters for structured driving logs such as nuPlan-style or motion-dataset-style scenes
+  - PyTorch ecosystem for model training
+  - optional plotting and experiment logging libraries
+
+  The core planner should remain decoupled from any single simulator or dataset vendor.

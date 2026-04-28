@@ -1,0 +1,12 @@
+num_samples: 96
+history_steps: 8
+future_horizon: 16
+state_dim: 6
+neighbor_count: 6
+lane_count: 8
+route_count: 2
+polyline_points: 32
+lane_dim: 4
+lane_width: 3.6
+longitudinal_step: 2.5
+seed: 7

@@ -1,0 +1,17 @@
+.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+
+.codex/
+nn_planner.egg-info/
+
+outputs/*
+!outputs/portfolio_demo/
+outputs/portfolio_demo/*
+!outputs/portfolio_demo/prediction_plot.png
+!outputs/portfolio_demo/portfolio_summary.json
+!outputs/portfolio_demo/portfolio_summary.md

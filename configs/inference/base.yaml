@@ -1,0 +1,7 @@
+batch_size: 4
+num_samples: 3
+device: auto
+seed: 7
+output_dir: outputs/infer
+eval_output_dir: outputs/eval
+checkpoint_path: ""
