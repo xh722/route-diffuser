@@ -123,7 +123,7 @@ Planned work:
 
 - [x] Implement one public-format data adapter.
       Current implementation uses a normalized NPZ bridge format that is easy to document.
-- [ ] Add dataset normalization statistics and caching.
+- [x] Add dataset normalization statistics and caching.
 - [x] Add `scripts/train_planner.py` and `scripts/eval_planner.py` as user-facing entry points
       that work for both synthetic and adapter-backed data.
 - [x] Add `scripts/export_onnx.py`.
@@ -157,6 +157,8 @@ Target outcome:
 Planned work:
 
 - [ ] Replace heuristic candidate scoring with a learned scorer or value head.
+- [ ] Replace heuristic candidate scoring with a learned scorer or value head.
+      Groundwork is in place through an optional learned scorer head and hybrid scoring path.
 - [ ] Upgrade the scene encoder toward explicit agent-map-route attention.
 - [ ] Add ablation configs for encoder, noise mode, sampler, scorer, and route prior variants.
 - [ ] Add scenario-specific failure analysis outputs.

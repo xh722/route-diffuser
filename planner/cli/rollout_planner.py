@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-steps", type=int, default=8)
     parser.add_argument("--num-samples", type=int, default=None)
     parser.add_argument("--device", default="cpu")
+    parser.add_argument("--selection-mode", default="auto")
     return parser.parse_args()
 
 
@@ -77,6 +78,7 @@ def main() -> None:
         num_steps=args.num_steps,
         num_samples=args.num_samples or int(infer_config.get("num_samples", 3)),
         time_delta=dataset_config.time_delta,
+        selection_mode=args.selection_mode,
     )
 
     trace_path = output_dir / "rollout_trace.pt"

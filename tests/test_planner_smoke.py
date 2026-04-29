@@ -41,6 +41,32 @@ def test_sampling_respects_anchor_state() -> None:
     assert torch.allclose(predictions[:, :, 0], batch.ego_current_state.unsqueeze(1))
 
 
+def test_learned_scorer_emits_candidate_logits() -> None:
+    batch = build_batch()
+    model = DiffusionPlanner(DiffusionPlannerConfig())
+    predictions = model.sample(batch, num_samples=3)
+    scores = model.score_trajectories(batch, predictions)
+
+    assert scores.shape == (batch.batch_size, 3)
+
+
+def test_training_loss_returns_finite_scorer_terms_when_enabled() -> None:
+    batch = build_batch()
+    model = DiffusionPlanner(
+        DiffusionPlannerConfig(
+            diffusion_steps=4,
+            learned_scorer_weight=0.1,
+            scorer_num_candidates=3,
+        )
+    )
+    outputs = model.training_loss(batch)
+
+    assert torch.isfinite(outputs["loss"])
+    assert torch.isfinite(outputs["diffusion_loss"])
+    assert torch.isfinite(outputs["scorer_loss"])
+    assert 0.0 <= float(outputs["scorer_accuracy"].item()) <= 1.0
+
+
 def test_one_epoch_training_smoke() -> None:
     dataset = SyntheticPlanningDataset(SyntheticDatasetConfig(num_samples=4))
     dataloader = DataLoader(

@@ -58,6 +58,7 @@ Key pieces:
 - `scene_encoder.py`: scene context encoding
 - `diffusion_decoder.py`: denoiser backbone
 - `diffusion_planner.py`: assembled planner model and sampling logic
+- `trajectory_scorer.py`: learned candidate scoring head skeleton
 
 Why it matters:
 
@@ -73,6 +74,7 @@ Key pieces:
 
 - `anchoring.py`: first-step anchoring
 - `scoring.py`: heuristic candidate ranking
+- hybrid heuristic + learned-scoring entry points
 
 Why it matters:
 

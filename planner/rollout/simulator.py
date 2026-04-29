@@ -8,7 +8,7 @@ from typing import Any
 import torch
 
 from planner.datasets.schema import CanonicalSceneBatch
-from planner.inference import score_trajectory_candidates
+from planner.inference import score_trajectory_candidates_for_mode
 from planner.preprocess import cos_sin_to_heading, heading_to_cos_sin
 
 
@@ -197,6 +197,7 @@ def rollout_planner(
     num_steps: int,
     num_samples: int,
     time_delta: float,
+    selection_mode: str = "auto",
 ) -> RolloutResult:
     """Run a lightweight receding-horizon rollout for one scene."""
 
@@ -249,10 +250,12 @@ def rollout_planner(
 
     for _ in range(num_steps):
         predictions = model.sample(current_batch, num_samples=num_samples)
-        scored = score_trajectory_candidates(
+        scored = score_trajectory_candidates_for_mode(
             predicted_samples=predictions,
             scene_batch=current_batch,
+            model=model,
             time_delta=time_delta,
+            selection_mode=selection_mode,
         )
         selected_local = scored["selected_trajectories"][0]
         next_local_state = selected_local[min(1, selected_local.shape[0] - 1)]

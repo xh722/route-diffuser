@@ -9,11 +9,14 @@ You can invoke the project in two equivalent ways.
 Script entry points:
 
 - `python scripts/prepare_dataset.py`
+- `python scripts/compute_dataset_stats.py`
 - `python scripts/export_dataset_npz.py`
 - `python scripts/export_onnx.py`
 - `python scripts/check_onnx_parity.py`
 - `python scripts/benchmark_infer.py`
 - `python scripts/rollout_planner.py`
+- `python scripts/compare_scorer.py`
+- `python scripts/run_ablation_matrix.py`
 - `python scripts/train_planner.py`
 - `python scripts/infer_planner.py`
 - `python scripts/eval_planner.py`
@@ -22,11 +25,14 @@ Script entry points:
 Installed command aliases after `pip install -e .[dev]`:
 
 - `route-diffuser-prepare`
+- `route-diffuser-stats`
 - `route-diffuser-export-npz`
 - `route-diffuser-export-onnx`
 - `route-diffuser-check-onnx`
 - `route-diffuser-benchmark`
 - `route-diffuser-rollout`
+- `route-diffuser-compare-scorer`
+- `route-diffuser-ablations`
 - `route-diffuser-train`
 - `route-diffuser-infer`
 - `route-diffuser-eval`
@@ -46,6 +52,11 @@ Default config files:
 - data: `configs/data/synthetic.yaml`
 - data example for public NPZ format: `configs/data/npz_example.yaml`
 - model: `configs/model/base.yaml`
+- ablation config for heuristic-only selection: `configs/model/heuristic_only.yaml`
+- ablation config for light learned-scorer influence: `configs/model/learned_scorer_light.yaml`
+- ablation config for learned scorer experiments: `configs/model/learned_scorer.yaml`
+- ablation config for stronger learned-scorer influence: `configs/model/learned_scorer_strong.yaml`
+- encoder-scale ablations: `configs/model/encoder_small.yaml`, `configs/model/encoder_wide.yaml`
 - train: `configs/train/base.yaml`
 - inference: `configs/inference/base.yaml`
 
@@ -86,6 +97,31 @@ Output:
 
 For NPZ-backed public-format data, point the data config at `configs/data/npz_example.yaml` and
 set `source_path` to your normalized `.npz` file.
+
+## Compute Dataset Statistics
+
+Compute cached per-feature statistics for one dataset configuration or prepared subset.
+
+Minimal example:
+
+```bash
+python scripts/compute_dataset_stats.py \
+  --data-config configs/data/synthetic.yaml \
+  --output outputs/stats/route_diffuser_synthetic_stats.json
+```
+
+Useful flags:
+
+- `--manifest-path`: compute stats for a prepared subset
+- `--batch-size`: CPU-side aggregation batch size
+- `--max-scenes`: limit the number of scenes used for the cache
+- `--output`: target JSON cache path
+
+Typical use:
+
+1. prepare a subset manifest if needed
+2. compute and save dataset statistics once
+3. reuse the cached stats file as a reference artifact for normalization and dataset inspection
 
 ## Train Planner
 
@@ -293,6 +329,73 @@ Outputs:
 - `rollout_plot.png`
 
 This is a lightweight closed-loop planner loop, not a full simulator service.
+
+## Compare Scorer Modes
+
+Compare `heuristic` and `hybrid` candidate selection under the same evaluation seed.
+
+Minimal example:
+
+```bash
+python scripts/compare_scorer.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/learned_scorer.yaml \
+  --output outputs/eval/scorer_comparison.json \
+  --device cpu
+```
+
+Useful flags:
+
+- `--checkpoint`: compare a trained checkpoint
+- `--manifest-path`: compare on a prepared subset
+- `--output`: target JSON report path
+- `--batch-size`: evaluation batch size
+- `--num-samples`: candidate samples per scene
+- `--device`: recommended `cpu` for light checks
+
+Output:
+
+- `scorer_comparison.json`
+
+## Run Ablation Matrix
+
+Run the standard scorer ablation config set and summarize all runs into one matrix.
+
+Minimal example:
+
+```bash
+python scripts/run_ablation_matrix.py \
+  --data-config configs/data/synthetic.yaml \
+  --output-dir outputs/ablations/scorer_matrix \
+  --device cpu
+```
+
+Default config set:
+
+- `configs/model/heuristic_only.yaml`
+- `configs/model/learned_scorer_light.yaml`
+- `configs/model/learned_scorer.yaml`
+- `configs/model/learned_scorer_strong.yaml`
+
+Outputs:
+
+- `scorer_ablation_matrix.json`
+- `scorer_ablation_matrix.md`
+
+This is the preferred command when you want one compact summary instead of multiple manual compare
+invocations.
+
+Recommended ablation pair:
+
+- `configs/model/heuristic_only.yaml`
+- `configs/model/learned_scorer.yaml`
+
+Recommended multi-level ablation:
+
+- `configs/model/heuristic_only.yaml`
+- `configs/model/learned_scorer_light.yaml`
+- `configs/model/learned_scorer.yaml`
+- `configs/model/learned_scorer_strong.yaml`
 
 ## Evaluate Planner
 

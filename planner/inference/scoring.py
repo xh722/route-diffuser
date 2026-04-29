@@ -36,11 +36,19 @@ def _gather_candidates(
     return predicted_samples[batch_index, indices]
 
 
+def _normalize_candidate_preferences(values: torch.Tensor) -> torch.Tensor:
+    centered = values - values.mean(dim=1, keepdim=True)
+    scale = values.std(dim=1, keepdim=True, unbiased=False).clamp(min=1e-6)
+    return centered / scale
+
+
 @torch.no_grad()
 def score_trajectory_candidates(
     predicted_samples: torch.Tensor,
     scene_batch: CanonicalSceneBatch,
     time_delta: float = 1.0 / 3.0,
+    learned_scores: torch.Tensor | None = None,
+    learned_weight: float = 0.0,
 ) -> dict[str, torch.Tensor]:
     """Score each sampled trajectory using route, clearance, and comfort priors."""
 
@@ -87,16 +95,25 @@ def score_trajectory_candidates(
     )
     progress_reward = progress / progress.abs().amax(dim=1, keepdim=True).clamp(min=1.0)
 
-    scores = (
+    heuristic_scores = (
         route_error
         + 0.75 * clearance_penalty
         + 0.35 * comfort_penalty
         - 0.10 * progress_reward
     )
-    selected_indices = scores.argmin(dim=1)
+    combined_scores = heuristic_scores
+    normalized_learned = None
+    if learned_scores is not None:
+        if learned_scores.shape != heuristic_scores.shape:
+            raise ValueError("learned_scores shape must match candidate score shape")
+        normalized_learned = _normalize_candidate_preferences(learned_scores)
+        combined_scores = heuristic_scores - learned_weight * normalized_learned
+
+    selected_indices = combined_scores.argmin(dim=1)
 
     return {
-        "scores": scores,
+        "scores": combined_scores,
+        "heuristic_scores": heuristic_scores,
         "selected_indices": selected_indices,
         "selected_trajectories": _gather_candidates(predicted_samples, selected_indices),
         "route_error": route_error,
@@ -104,7 +121,75 @@ def score_trajectory_candidates(
         "min_clearance": min_clearance,
         "collision": collision,
         "comfort_penalty": comfort_penalty,
+        "learned_scores": learned_scores,
+        "normalized_learned_scores": normalized_learned,
     }
+
+
+@torch.no_grad()
+def score_trajectory_candidates_with_model(
+    predicted_samples: torch.Tensor,
+    scene_batch: CanonicalSceneBatch,
+    model,
+    time_delta: float = 1.0 / 3.0,
+    learned_weight: float | None = None,
+) -> dict[str, torch.Tensor]:
+    """Hybrid candidate scoring using heuristic costs plus a learned scorer head."""
+
+    if learned_weight is None:
+        learned_weight = float(getattr(model.config, "learned_scorer_weight", 0.0))
+    learned_scores = model.score_trajectories(scene_batch, predicted_samples)
+    return score_trajectory_candidates(
+        predicted_samples=predicted_samples,
+        scene_batch=scene_batch,
+        time_delta=time_delta,
+        learned_scores=learned_scores,
+        learned_weight=learned_weight,
+    )
+
+
+@torch.no_grad()
+def score_trajectory_candidates_for_mode(
+    predicted_samples: torch.Tensor,
+    scene_batch: CanonicalSceneBatch,
+    model,
+    *,
+    time_delta: float = 1.0 / 3.0,
+    selection_mode: str = "auto",
+) -> dict[str, torch.Tensor]:
+    """Route candidate scoring through heuristic-only or hybrid selection."""
+
+    normalized_mode = selection_mode.strip().lower()
+    if normalized_mode == "auto":
+        normalized_mode = (
+            "hybrid"
+            if float(getattr(model.config, "learned_scorer_weight", 0.0)) > 0.0
+            else "heuristic"
+        )
+
+    if normalized_mode == "heuristic":
+        scored = score_trajectory_candidates(
+            predicted_samples=predicted_samples,
+            scene_batch=scene_batch,
+            time_delta=time_delta,
+        )
+    elif normalized_mode == "hybrid":
+        scored = score_trajectory_candidates_with_model(
+            predicted_samples=predicted_samples,
+            scene_batch=scene_batch,
+            model=model,
+            time_delta=time_delta,
+        )
+    else:
+        raise ValueError(
+            f"Unsupported selection_mode {selection_mode!r}; expected auto, heuristic, or hybrid"
+        )
+
+    scored["selection_mode"] = torch.tensor(
+        0 if normalized_mode == "heuristic" else 1,
+        device=predicted_samples.device,
+    )
+    return scored
 
 
 @torch.no_grad()

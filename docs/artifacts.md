@@ -7,6 +7,7 @@ This document explains the main files written by the project and what each artif
 Default output directories:
 
 - `outputs/manifests/`
+- `outputs/stats/`
 - `outputs/datasets/`
 - `outputs/onnx/`
 - `outputs/benchmarks/`
@@ -39,6 +40,29 @@ Typical contents:
 - split
 - scene count
 - per-entry ids, scenario names, sample indices, tags, metadata
+
+## Dataset Statistics
+
+Location:
+
+- `outputs/stats/*.json`
+
+Produced by:
+
+- `python scripts/compute_dataset_stats.py`
+
+Purpose:
+
+- caches reusable per-feature summary statistics
+- provides a stable inspection artifact for dataset ranges and scale
+- lays the groundwork for future normalization reuse
+
+Typical contents:
+
+- dataset name and dataset type
+- scene count
+- per-tensor feature counts
+- mean, std, min, and max for canonical tensor groups
 
 ## Exported NPZ Datasets
 
@@ -159,6 +183,45 @@ Purpose:
 - `rollout_trace.pt`: raw executed trajectory trace, selected candidate indices, and collision flags
 - `rollout_summary.json/.md`: lightweight closed-loop metrics and artifact pointers
 - `rollout_plot.png`: executed path against the route and optional reference path
+
+## Scorer Comparison Artifacts
+
+Location:
+
+- `outputs/eval/`
+
+Produced by:
+
+- `python scripts/compare_scorer.py`
+
+Main files:
+
+- `scorer_comparison.json`
+
+Purpose:
+
+- compares `heuristic` and `hybrid` selection under the same evaluation seed
+- reports metric deltas attributable to the learned scorer path
+
+## Ablation Matrix Artifacts
+
+Location:
+
+- `outputs/ablations/`
+
+Produced by:
+
+- `python scripts/run_ablation_matrix.py`
+
+Main files:
+
+- `scorer_ablation_matrix.json`
+- `scorer_ablation_matrix.md`
+
+Purpose:
+
+- aggregates the standard scorer config set into one summary artifact
+- provides baseline deltas against `heuristic_only.yaml`
 
 ## Evaluation Artifacts
 

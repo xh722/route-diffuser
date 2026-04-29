@@ -38,11 +38,14 @@ python scripts/demo_planner.py
 安装后也可以直接使用命令别名：
 
 - `route-diffuser-prepare`
+- `route-diffuser-stats`
 - `route-diffuser-export-npz`
 - `route-diffuser-export-onnx`
 - `route-diffuser-check-onnx`
 - `route-diffuser-benchmark`
 - `route-diffuser-rollout`
+- `route-diffuser-compare-scorer`
+- `route-diffuser-ablations`
 - `route-diffuser-train`
 - `route-diffuser-infer`
 - `route-diffuser-eval`
@@ -54,6 +57,7 @@ python scripts/demo_planner.py
 - [docs/artifacts.md](docs/artifacts.md)
 - [docs/architecture.md](docs/architecture.md)
 - [docs/release_checklist.md](docs/release_checklist.md)
+- [docs/ablations.md](docs/ablations.md)
 
 上面的 demo 命令会在 `outputs/portfolio_demo/` 下生成一套完整展示产物：
 
@@ -72,6 +76,9 @@ python scripts/demo_planner.py
 公开入口：
 
 - `python scripts/prepare_dataset.py`
+- `python scripts/compute_dataset_stats.py`
+- `python scripts/compare_scorer.py`
+- `python scripts/run_ablation_matrix.py`
 - `python scripts/train_planner.py`
 - `python scripts/infer_planner.py`
 - `python scripts/eval_planner.py`
@@ -120,10 +127,12 @@ python scripts/demo_planner.py
 - `planner/reports/`：结构化评估报告 schema
 - `planner/visualization/`：轨迹绘图工具
 - `scripts/`：数据准备、训练、推理、评估和 demo 入口
+- `configs/model/`：基础模型配置，以及 scorer / encoder 对比配置
 - `docs/commands.md`：命令手册
 - `docs/artifacts.md`：产物说明文档
 - `docs/architecture.md`：模块架构说明
 - `docs/release_checklist.md`：发布检查清单
+- `docs/ablations.md`：实验矩阵和 scorer 对比说明
 - `ROADMAP.md`：项目完善路线图
 
 ## 适合怎么描述到简历里

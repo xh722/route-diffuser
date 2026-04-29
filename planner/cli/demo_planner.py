@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 from planner.cli.common import apply_overrides, load_dataset_bundle, load_planner_model, resolve_device
 from planner.common import load_yaml_config, set_seed
-from planner.inference import score_trajectory_candidates
+from planner.inference import score_trajectory_candidates_for_mode
 from planner.trainers import create_optimizer, evaluate_model_detailed, train_one_epoch
 from planner.visualization import (
     plot_candidate_trajectories,
@@ -42,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eval-batch-size", type=int, default=None)
     parser.add_argument("--num-samples", type=int, default=None)
     parser.add_argument("--device", default="")
+    parser.add_argument("--selection-mode", default="auto")
     return parser.parse_args()
 
 
@@ -195,10 +196,12 @@ def main() -> None:
     predictions = model.sample(
         preview_batch, num_samples=int(infer_config.get("num_samples", 3))
     )
-    scored_preview = score_trajectory_candidates(
+    scored_preview = score_trajectory_candidates_for_mode(
         predicted_samples=predictions,
         scene_batch=preview_batch,
+        model=model,
         time_delta=dataset_config.time_delta,
+        selection_mode=args.selection_mode,
     )
     selected_preview = scored_preview["selected_trajectories"]
     predictions_path = output_dir / "predictions.pt"
@@ -257,6 +260,7 @@ def main() -> None:
             "device": str(device),
             "parameter_count": sum(parameter.numel() for parameter in model.parameters()),
         },
+        selection_mode=args.selection_mode,
     )
     evaluation_report.save_json(evaluation_json_path)
     evaluation_report.save_markdown(evaluation_markdown_path)

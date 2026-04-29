@@ -9,7 +9,7 @@ import torch
 from torch import nn
 
 from planner.datasets.schema import CanonicalSceneBatch
-from planner.inference import score_trajectory_candidates
+from planner.inference import score_trajectory_candidates_for_mode
 from planner.metrics.trajectory import candidate_set_metrics, compute_open_loop_metrics
 from planner.models.diffusion_planner import DiffusionPlanner
 from planner.reports import EvaluationDatasetInfo, EvaluationReport, EvaluationSelection
@@ -33,7 +33,13 @@ def train_one_epoch(
     """Run one training epoch and return aggregate metrics."""
 
     model.train()
-    loss_values: list[float] = []
+    metric_sums: dict[str, float] = {
+        "loss": 0.0,
+        "diffusion_loss": 0.0,
+        "scorer_loss": 0.0,
+        "scorer_accuracy": 0.0,
+    }
+    count = 0
 
     for batch in dataloader:
         batch = batch.to(device)
@@ -43,10 +49,16 @@ def train_one_epoch(
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=grad_clip_norm)
         optimizer.step()
-        loss_values.append(float(loss.item()))
+        for key in metric_sums:
+            metric_sums[key] += float(step_outputs[key].item())
+        count += 1
 
-    mean_loss = sum(loss_values) / max(len(loss_values), 1)
-    return {"loss": mean_loss, "num_batches": float(len(loss_values))}
+    if count == 0:
+        return {key: 0.0 for key in (*metric_sums.keys(), "num_batches")}
+    return {
+        **{key: value / count for key, value in metric_sums.items()},
+        "num_batches": float(count),
+    }
 
 
 def _append_metric_store(
@@ -92,6 +104,7 @@ def evaluate_model_detailed(
     split: str = "eval",
     artifacts: dict[str, str] | None = None,
     metadata: dict[str, object] | None = None,
+    selection_mode: str = "auto",
 ) -> EvaluationReport:
     """Evaluate the planner and return a planning-style report."""
 
@@ -109,10 +122,12 @@ def evaluate_model_detailed(
             raise ValueError("future_ego_trajectory is required for evaluation")
 
         predicted_samples = model.sample(batch, num_samples=num_samples)
-        scored = score_trajectory_candidates(
+        scored = score_trajectory_candidates_for_mode(
             predicted_samples=predicted_samples,
             scene_batch=batch,
+            model=model,
             time_delta=time_delta,
+            selection_mode=selection_mode,
         )
         selected = scored["selected_trajectories"]
 
@@ -168,7 +183,15 @@ def evaluate_model_detailed(
             split=split,
         ),
         selection=EvaluationSelection(
-            strategy="heuristic_route_clearance_comfort_scoring",
+            strategy=(
+                "hybrid_route_clearance_comfort_learned"
+                if selection_mode == "hybrid"
+                or (
+                    selection_mode == "auto"
+                    and float(getattr(model.config, "learned_scorer_weight", 0.0)) > 0.0
+                )
+                else "heuristic_route_clearance_comfort_scoring"
+            ),
             num_samples=int(num_samples),
             time_delta=float(time_delta),
         ),
@@ -190,6 +213,7 @@ def evaluate_model(
     device: torch.device | str,
     num_samples: int = 1,
     time_delta: float = 1.0 / 3.0,
+    selection_mode: str = "auto",
 ) -> dict[str, float]:
     """Evaluate the planner with open-loop metrics."""
 
@@ -199,5 +223,6 @@ def evaluate_model(
         device=device,
         num_samples=num_samples,
         time_delta=time_delta,
+        selection_mode=selection_mode,
     )
     return report.all_metrics()

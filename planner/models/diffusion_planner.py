@@ -13,9 +13,13 @@ from planner.diffusion.noise import sample_diffusion_noise
 from planner.diffusion.schedule import DiffusionSchedule
 from planner.diffusion.utils import ddpm_step, q_sample
 from planner.inference.anchoring import anchor_first_timestep
-from planner.losses.diffusion import noise_prediction_loss
+from planner.losses.diffusion import (
+    candidate_score_distillation_loss,
+    noise_prediction_loss,
+)
 from planner.models.diffusion_decoder import DiffusionDecoder
 from planner.models.scene_encoder import SceneEncoder
+from planner.models.trajectory_scorer import TrajectoryScorer
 from planner.preprocess import build_route_trajectory_prior
 
 
@@ -40,6 +44,11 @@ class DiffusionPlannerConfig:
     diffusion_steps: int = 32
     beta_start: float = 1e-4
     beta_end: float = 2e-2
+    scorer_hidden_dim: int = 128
+    learned_scorer_weight: float = 0.0
+    scorer_num_candidates: int = 4
+    scorer_candidate_noise_scale: float = 0.5
+    scorer_target_temperature: float = 0.5
 
     @classmethod
     def from_mapping(cls, values: dict[str, Any]) -> "DiffusionPlannerConfig":
@@ -73,6 +82,11 @@ class DiffusionPlanner(nn.Module):
             kernel_size=config.decoder_kernel_size,
             n_groups=config.decoder_groups,
         )
+        self.scorer = TrajectoryScorer(
+            context_dim=config.hidden_dim,
+            trajectory_dim=config.trajectory_dim,
+            hidden_dim=config.scorer_hidden_dim,
+        )
 
         schedule = DiffusionSchedule.linear(
             num_steps=config.diffusion_steps,
@@ -95,9 +109,22 @@ class DiffusionPlanner(nn.Module):
         noisy_trajectory: torch.Tensor,
         timesteps: torch.Tensor,
     ) -> torch.Tensor:
-        scene_batch.validate()
-        context = self.encoder(scene_batch)
+        context = self.encode_scene(scene_batch)
         return self.decoder(noisy_trajectory, timesteps, context)
+
+    def encode_scene(self, scene_batch: CanonicalSceneBatch) -> torch.Tensor:
+        scene_batch.validate()
+        return self.encoder(scene_batch)
+
+    def score_trajectories(
+        self,
+        scene_batch: CanonicalSceneBatch,
+        candidate_trajectories: torch.Tensor,
+    ) -> torch.Tensor:
+        """Return learned preference logits for candidate trajectories."""
+
+        scene_context = self.encode_scene(scene_batch)
+        return self.scorer(candidate_trajectories, scene_context)
 
     def build_trajectory_prior(self, scene_batch: CanonicalSceneBatch) -> torch.Tensor:
         if not self.config.use_route_prior:
@@ -132,6 +159,61 @@ class DiffusionPlanner(nn.Module):
         mask[:, 0] = False
         return mask
 
+    def _build_scorer_candidate_set(
+        self,
+        scene_batch: CanonicalSceneBatch,
+        target_trajectory: torch.Tensor,
+        trajectory_prior: torch.Tensor,
+    ) -> torch.Tensor:
+        num_candidates = max(int(self.config.scorer_num_candidates), 2)
+        batch_size, horizon, trajectory_dim = target_trajectory.shape
+        device = target_trajectory.device
+        dtype = target_trajectory.dtype
+
+        candidates = torch.zeros(
+            batch_size,
+            num_candidates,
+            horizon,
+            trajectory_dim,
+            device=device,
+            dtype=dtype,
+        )
+        candidates[:, 0] = target_trajectory
+        candidates[:, 1] = trajectory_prior
+
+        if num_candidates > 2:
+            noise = torch.randn(
+                batch_size,
+                num_candidates - 2,
+                horizon,
+                trajectory_dim,
+                device=device,
+                dtype=dtype,
+            )
+            noise[:, :, 0] = 0.0
+            perturbed = target_trajectory.unsqueeze(1) + self.config.scorer_candidate_noise_scale * noise
+            perturbed[:, :, 0] = scene_batch.ego_current_state.unsqueeze(1)
+            candidates[:, 2:] = perturbed
+
+        candidates[:, :, 0] = scene_batch.ego_current_state.unsqueeze(1)
+        return candidates
+
+    def _candidate_target_costs(
+        self,
+        candidate_trajectories: torch.Tensor,
+        target_trajectory: torch.Tensor,
+        future_mask: torch.Tensor | None,
+    ) -> torch.Tensor:
+        errors = torch.linalg.norm(
+            candidate_trajectories[..., :2] - target_trajectory.unsqueeze(1)[..., :2],
+            dim=-1,
+        )
+        if future_mask is None:
+            return errors.mean(dim=-1)
+
+        weights = future_mask.to(errors.dtype).unsqueeze(1)
+        return (errors * weights).sum(dim=-1) / weights.sum(dim=-1).clamp(min=1.0)
+
     def training_loss(
         self, scene_batch: CanonicalSceneBatch, noise: torch.Tensor | None = None
     ) -> dict[str, torch.Tensor]:
@@ -160,13 +242,41 @@ class DiffusionPlanner(nn.Module):
         noisy_target = q_sample(target, timesteps, self.schedule, noise=noise)
         noisy_target[:, 0] = 0.0
         pred_noise = self(scene_batch, noisy_target, timesteps)
-        loss = noise_prediction_loss(
+        diffusion_loss = noise_prediction_loss(
             pred_noise,
             noise,
             mask=self._training_mask(scene_batch),
         )
+        scorer_loss = target.new_zeros(())
+        scorer_accuracy = target.new_zeros(())
+
+        if self.config.learned_scorer_weight > 0.0:
+            candidate_trajectories = self._build_scorer_candidate_set(
+                scene_batch=scene_batch,
+                target_trajectory=scene_batch.future_ego_trajectory,
+                trajectory_prior=prior,
+            )
+            predicted_scores = self.score_trajectories(scene_batch, candidate_trajectories)
+            target_costs = self._candidate_target_costs(
+                candidate_trajectories=candidate_trajectories,
+                target_trajectory=scene_batch.future_ego_trajectory,
+                future_mask=scene_batch.future_ego_mask,
+            )
+            scorer_loss = candidate_score_distillation_loss(
+                predicted_scores,
+                target_costs,
+                temperature=self.config.scorer_target_temperature,
+            )
+            scorer_accuracy = (
+                predicted_scores.argmax(dim=1) == target_costs.argmin(dim=1)
+            ).to(target.dtype).mean()
+
+        loss = diffusion_loss + self.config.learned_scorer_weight * scorer_loss
         return {
             "loss": loss,
+            "diffusion_loss": diffusion_loss,
+            "scorer_loss": scorer_loss,
+            "scorer_accuracy": scorer_accuracy,
             "pred_noise": pred_noise,
             "target_noise": noise,
             "trajectory_prior": prior,

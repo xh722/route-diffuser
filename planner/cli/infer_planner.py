@@ -9,7 +9,7 @@ import torch
 
 from planner.cli.common import apply_overrides, load_dataset_bundle, load_planner_model, resolve_device
 from planner.common import load_yaml_config, set_seed
-from planner.inference import score_trajectory_candidates
+from planner.inference import score_trajectory_candidates_for_mode
 from planner.visualization import plot_trajectory_comparison
 
 
@@ -24,6 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=None)
     parser.add_argument("--num-samples", type=int, default=None)
     parser.add_argument("--device", default="")
+    parser.add_argument("--selection-mode", default="auto")
     return parser.parse_args()
 
 
@@ -62,10 +63,12 @@ def main() -> None:
     batch = batch.to(device)
     num_samples = int(infer_config.get("num_samples", 3))
     predictions = model.sample(batch, num_samples=num_samples)
-    scored = score_trajectory_candidates(
+    scored = score_trajectory_candidates_for_mode(
         predicted_samples=predictions,
         scene_batch=batch,
+        model=model,
         time_delta=dataset_config.time_delta,
+        selection_mode=args.selection_mode,
     )
 
     prediction_path = output_dir / "predictions.pt"

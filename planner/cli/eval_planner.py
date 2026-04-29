@@ -22,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=None)
     parser.add_argument("--num-samples", type=int, default=None)
     parser.add_argument("--device", default="")
+    parser.add_argument("--selection-mode", default="auto")
     return parser.parse_args()
 
 
@@ -76,6 +77,7 @@ def main() -> None:
             "device": str(device),
             "batch_size": batch_size,
         },
+        selection_mode=args.selection_mode,
     )
     report.save_json(report_json_path)
     report.save_markdown(report_markdown_path)
