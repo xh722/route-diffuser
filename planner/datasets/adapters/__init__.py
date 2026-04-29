@@ -9,6 +9,11 @@ from planner.datasets.adapters.manifest import (
     DatasetManifest,
     SceneManifestEntry,
 )
+from planner.datasets.adapters.npz import (
+    NpzDatasetConfig,
+    NpzSceneAdapter,
+    build_npz_manifest,
+)
 from planner.datasets.adapters.synthetic import (
     SCENARIO_SEQUENCE,
     SyntheticDatasetConfig,
@@ -19,11 +24,14 @@ from planner.datasets.adapters.synthetic import (
 __all__ = [
     "AdapterBackedPlanningDataset",
     "DatasetManifest",
+    "NpzDatasetConfig",
+    "NpzSceneAdapter",
     "SCENARIO_SEQUENCE",
     "SceneAdapter",
     "SceneManifestEntry",
     "SceneSample",
     "SyntheticDatasetConfig",
     "SyntheticSceneAdapter",
+    "build_npz_manifest",
     "build_synthetic_manifest",
 ]

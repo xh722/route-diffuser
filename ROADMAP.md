@@ -91,15 +91,15 @@ Target outcome:
 
 Planned work:
 
-- [ ] Add `planner/datasets/adapters/` with a stable adapter interface.
-- [ ] Add `scripts/prepare_dataset.py` for manifest generation and preprocessing.
-- [ ] Introduce dataset manifests such as JSON/JSONL/NPZ index files instead of direct ad hoc loading.
-- [ ] Separate synthetic dataset config from future real-data adapter configs.
-- [ ] Refactor evaluation output into a stable report contract:
+- [x] Add `planner/datasets/adapters/` with a stable adapter interface.
+- [x] Add `scripts/prepare_dataset.py` for manifest generation and preprocessing.
+- [x] Introduce dataset manifests such as JSON/JSONL/NPZ index files instead of direct ad hoc loading.
+- [x] Separate synthetic dataset config from future real-data adapter configs.
+- [x] Refactor evaluation output into a stable report contract:
       overall metrics, scenario metrics, oracle metrics, selection diagnostics, artifact paths.
-- [ ] Add smoke scripts for `train`, `infer`, `eval`, and `demo`.
-- [ ] Add a minimal CI path that runs tests and at least one pipeline smoke command.
-- [ ] Add docs for repo scope, supported commands, and artifact meanings.
+- [x] Add smoke scripts for `train`, `infer`, `eval`, and `demo`.
+- [x] Add a minimal CI path that runs tests and at least one pipeline smoke command.
+- [x] Add docs for repo scope, supported commands, and artifact meanings.
 
 Exit criteria:
 
@@ -121,20 +121,21 @@ Target outcome:
 
 Planned work:
 
-- [ ] Implement one real-data adapter.
-      Recommended direction: a public trajectory-planning or motion-forecasting style format,
-      or a normalized NPZ adapter that is easy to document.
+- [x] Implement one public-format data adapter.
+      Current implementation uses a normalized NPZ bridge format that is easy to document.
 - [ ] Add dataset normalization statistics and caching.
-- [ ] Add `scripts/train_planner.py` and `scripts/eval_planner.py` as user-facing entry points
+- [x] Add `scripts/train_planner.py` and `scripts/eval_planner.py` as user-facing entry points
       that work for both synthetic and adapter-backed data.
-- [ ] Add `scripts/export_onnx.py`.
-- [ ] Add ONNX vs PyTorch parity checking with fixed tolerance.
-- [ ] Add inference benchmark script for latency and throughput on CPU and GPU.
-- [ ] Add `planner/sim/` or `planner/rollout/` for lightweight closed-loop rollout.
-- [ ] Add rollout metrics: collision rate, route deviation, progress, comfort proxies, recovery rate.
-- [ ] Generate rollout visual artifacts: GIF, frame gallery, or video snippets.
-- [ ] Expand README with a full command matrix and project architecture diagram.
-- [ ] Add a release checklist for checkpoints, demo outputs, and docs.
+- [x] Add `scripts/export_onnx.py`.
+- [x] Add ONNX vs PyTorch parity checking with fixed tolerance.
+- [x] Add inference benchmark script for latency and throughput on CPU and GPU.
+- [x] Add `planner/sim/` or `planner/rollout/` for lightweight closed-loop rollout.
+- [x] Add rollout metrics: collision rate, route deviation, progress, comfort proxies, recovery rate.
+      Current implementation provides a lightweight first pass, not a full simulator-grade metric suite.
+- [x] Generate rollout visual artifacts: GIF, frame gallery, or video snippets.
+      Current implementation provides a rollout trace plot rather than video assets.
+- [x] Expand README with a full command matrix and project architecture diagram.
+- [x] Add a release checklist for checkpoints, demo outputs, and docs.
 
 Exit criteria:
 

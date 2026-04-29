@@ -7,6 +7,7 @@ import torch
 from planner.datasets.adapters import (
     AdapterBackedPlanningDataset,
     DatasetManifest,
+    SceneAdapter,
     SyntheticDatasetConfig,
     SyntheticSceneAdapter,
     build_synthetic_manifest,
@@ -25,6 +26,21 @@ class SyntheticPlanningDataset(AdapterBackedPlanningDataset):
         self.config = config
         self.manifest = manifest
         super().__init__(SyntheticSceneAdapter(config=config, manifest=manifest))
+
+
+class AdapterPlanningDataset(AdapterBackedPlanningDataset):
+    """Generic planning dataset wrapper for adapter-backed public formats."""
+
+    def __init__(
+        self,
+        *,
+        config: object,
+        adapter: SceneAdapter,
+        manifest: DatasetManifest | None = None,
+    ) -> None:
+        self.config = config
+        self.manifest = manifest
+        super().__init__(adapter)
 
 
 def collate_scene_batches(
@@ -58,6 +74,7 @@ def collate_scene_batches(
 
 
 __all__ = [
+    "AdapterPlanningDataset",
     "SyntheticDatasetConfig",
     "SyntheticPlanningDataset",
     "build_synthetic_manifest",

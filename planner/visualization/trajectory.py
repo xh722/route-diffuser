@@ -161,6 +161,55 @@ def plot_scenario_gallery(
     return fig
 
 
+def plot_rollout_trace(
+    executed: torch.Tensor,
+    reference: torch.Tensor | None = None,
+    route_polylines: torch.Tensor | None = None,
+    route_mask: torch.Tensor | None = None,
+    output_path: str | Path | None = None,
+    title: str = "Closed-loop rollout trace",
+):
+    """Plot a closed-loop rollout against the route and optional reference path."""
+
+    executed = executed.detach().cpu()
+    route_polylines = (
+        None if route_polylines is None else route_polylines.detach().cpu()
+    )
+    route_mask = None if route_mask is None else route_mask.detach().cpu()
+    reference = None if reference is None else reference.detach().cpu()
+
+    fig, axis = plt.subplots(figsize=(7, 6))
+    _plot_route(axis, route_polylines, route_mask, item_index=0)
+    if reference is not None:
+        axis.plot(
+            reference[:, 0],
+            reference[:, 1],
+            color="forestgreen",
+            linewidth=2.0,
+            linestyle="--",
+            label="reference",
+        )
+    axis.plot(
+        executed[:, 0],
+        executed[:, 1],
+        color="firebrick",
+        linewidth=2.4,
+        label="executed",
+    )
+    axis.scatter(executed[0, 0], executed[0, 1], color="black", s=30, label="start")
+    axis.scatter(executed[-1, 0], executed[-1, 1], color="firebrick", s=35, label="final")
+    _style_axis(axis, title)
+
+    if output_path is not None:
+        destination = Path(output_path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(destination, bbox_inches="tight")
+        plt.close(fig)
+        return destination
+
+    return fig
+
+
 def _best_candidate_index(candidates: torch.Tensor, target: torch.Tensor) -> int:
     errors = torch.linalg.norm(candidates[..., :2] - target.unsqueeze(0)[..., :2], dim=-1)
     return int(errors.mean(dim=-1).argmin().item())

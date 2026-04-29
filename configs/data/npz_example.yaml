@@ -1,0 +1,7 @@
+dataset_type: npz
+dataset_name: route_diffuser_npz
+manifest_path: ""
+source_path: data/example_planning_dataset.npz
+state_dim: 6
+lane_dim: 4
+time_delta: 0.3333333333

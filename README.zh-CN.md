@@ -38,6 +38,11 @@ python scripts/demo_planner.py
 安装后也可以直接使用命令别名：
 
 - `route-diffuser-prepare`
+- `route-diffuser-export-npz`
+- `route-diffuser-export-onnx`
+- `route-diffuser-check-onnx`
+- `route-diffuser-benchmark`
+- `route-diffuser-rollout`
 - `route-diffuser-train`
 - `route-diffuser-infer`
 - `route-diffuser-eval`
@@ -46,6 +51,9 @@ python scripts/demo_planner.py
 命令手册见：
 
 - [docs/commands.md](docs/commands.md)
+- [docs/artifacts.md](docs/artifacts.md)
+- [docs/architecture.md](docs/architecture.md)
+- [docs/release_checklist.md](docs/release_checklist.md)
 
 上面的 demo 命令会在 `outputs/portfolio_demo/` 下生成一套完整展示产物：
 
@@ -104,6 +112,7 @@ python scripts/demo_planner.py
 ## 仓库结构
 
 - `planner/datasets/`：场景 schema、synthetic 数据和数据工厂
+- `planner/datasets/adapters/`：可插拔数据适配层，当前包含 synthetic 和公开 NPZ 格式
 - `planner/models/`：scene encoder 和 diffusion decoder
 - `planner/diffusion/`：噪声调度与反向扩散工具
 - `planner/inference/`：锚定和候选打分逻辑
@@ -112,6 +121,9 @@ python scripts/demo_planner.py
 - `planner/visualization/`：轨迹绘图工具
 - `scripts/`：数据准备、训练、推理、评估和 demo 入口
 - `docs/commands.md`：命令手册
+- `docs/artifacts.md`：产物说明文档
+- `docs/architecture.md`：模块架构说明
+- `docs/release_checklist.md`：发布检查清单
 - `ROADMAP.md`：项目完善路线图
 
 ## 适合怎么描述到简历里

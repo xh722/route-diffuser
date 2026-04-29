@@ -9,6 +9,11 @@ def test_public_cli_entrypoints_expose_help() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     scripts = [
         "scripts/prepare_dataset.py",
+        "scripts/export_dataset_npz.py",
+        "scripts/export_onnx.py",
+        "scripts/check_onnx_parity.py",
+        "scripts/benchmark_infer.py",
+        "scripts/rollout_planner.py",
         "scripts/train_planner.py",
         "scripts/infer_planner.py",
         "scripts/eval_planner.py",

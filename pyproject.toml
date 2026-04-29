@@ -17,6 +17,11 @@ dependencies = [
 
 [project.scripts]
 route-diffuser-prepare = "planner.cli.prepare_dataset:main"
+route-diffuser-export-npz = "planner.cli.export_dataset_npz:main"
+route-diffuser-export-onnx = "planner.cli.export_onnx:main"
+route-diffuser-check-onnx = "planner.cli.check_onnx_parity:main"
+route-diffuser-benchmark = "planner.cli.benchmark_infer:main"
+route-diffuser-rollout = "planner.cli.rollout_planner:main"
 route-diffuser-train = "planner.cli.train_planner:main"
 route-diffuser-infer = "planner.cli.infer_planner:main"
 route-diffuser-eval = "planner.cli.eval_planner:main"

@@ -42,12 +42,20 @@ python scripts/demo_planner.py
 Installed command aliases are also available after `pip install -e .[dev]`:
 
 - `route-diffuser-prepare`
+- `route-diffuser-export-npz`
+- `route-diffuser-export-onnx`
+- `route-diffuser-check-onnx`
+- `route-diffuser-benchmark`
+- `route-diffuser-rollout`
 - `route-diffuser-train`
 - `route-diffuser-infer`
 - `route-diffuser-eval`
 - `route-diffuser-demo`
 
 Full command reference: [`docs/commands.md`](docs/commands.md)
+Artifact reference: [`docs/artifacts.md`](docs/artifacts.md)
+Architecture reference: [`docs/architecture.md`](docs/architecture.md)
+Release checklist: [`docs/release_checklist.md`](docs/release_checklist.md)
 
 That command produces a compact project showcase in `outputs/portfolio_demo/`:
 
@@ -110,6 +118,7 @@ structured scenario generator / future dataset adapter
 ## Repository Tour
 
 - `planner/datasets/`: canonical scene schema and structured synthetic scenarios
+- `planner/datasets/adapters/`: pluggable dataset adapters including synthetic and NPZ-backed public format loading
 - `planner/models/`: scene encoder and conditional diffusion decoder
 - `planner/diffusion/`: noise schedule and reverse diffusion utilities
 - `planner/inference/`: anchoring plus heuristic candidate scoring
@@ -117,6 +126,9 @@ structured scenario generator / future dataset adapter
 - `planner/visualization/`: trajectory plotting utilities
 - `scripts/`: dataset preparation, train, infer, evaluate, and portfolio demo entry points
 - `docs/commands.md`: public command manual
+- `docs/artifacts.md`: output artifact reference
+- `docs/architecture.md`: module and boundary overview
+- `docs/release_checklist.md`: release-readiness checklist
 - `ROADMAP.md`: execution plan for completing the public project
 
 ## Resume-Friendly Project Framing

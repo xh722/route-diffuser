@@ -4,15 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from planner.datasets.adapters import DatasetManifest
+from planner.datasets.adapters import DatasetManifest, NpzDatasetConfig, NpzSceneAdapter, build_npz_manifest
 from planner.datasets.synthetic import (
+    AdapterPlanningDataset,
     SyntheticDatasetConfig,
     SyntheticPlanningDataset,
     build_synthetic_manifest,
 )
 
 
-def build_dataset_from_config(values: dict[str, Any]) -> SyntheticPlanningDataset:
+def build_dataset_from_config(values: dict[str, Any]):
     """Build a dataset from a config mapping."""
 
     manifest = _load_manifest_from_config(values)
@@ -25,6 +26,17 @@ def build_dataset_from_config(values: dict[str, Any]) -> SyntheticPlanningDatase
         config_values.update(values)
         config = SyntheticDatasetConfig.from_mapping(config_values)
         return SyntheticPlanningDataset(config=config, manifest=manifest)
+    if dataset_type == "npz":
+        config_values = {}
+        if manifest is not None:
+            config_values.update(manifest.config)
+        config_values.update(values)
+        config = NpzDatasetConfig.from_mapping(config_values)
+        return AdapterPlanningDataset(
+            config=config,
+            adapter=NpzSceneAdapter(config=config, manifest=manifest),
+            manifest=manifest,
+        )
 
     raise ValueError(f"Unsupported dataset_type: {dataset_type!r}")
 
@@ -46,6 +58,13 @@ def build_manifest_from_config(
             start_index=start_index,
             num_samples=num_samples,
         )
+    if dataset_type == "npz":
+        if start_index != 0:
+            raise ValueError("npz manifests do not support start_index slicing yet")
+        if num_samples is not None:
+            raise ValueError("npz manifests currently derive scene_count from the source file")
+        config = NpzDatasetConfig.from_mapping(values)
+        return build_npz_manifest(config=config, split=split)
 
     raise ValueError(f"Unsupported dataset_type: {dataset_type!r}")
 

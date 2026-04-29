@@ -9,6 +9,11 @@ You can invoke the project in two equivalent ways.
 Script entry points:
 
 - `python scripts/prepare_dataset.py`
+- `python scripts/export_dataset_npz.py`
+- `python scripts/export_onnx.py`
+- `python scripts/check_onnx_parity.py`
+- `python scripts/benchmark_infer.py`
+- `python scripts/rollout_planner.py`
 - `python scripts/train_planner.py`
 - `python scripts/infer_planner.py`
 - `python scripts/eval_planner.py`
@@ -17,6 +22,11 @@ Script entry points:
 Installed command aliases after `pip install -e .[dev]`:
 
 - `route-diffuser-prepare`
+- `route-diffuser-export-npz`
+- `route-diffuser-export-onnx`
+- `route-diffuser-check-onnx`
+- `route-diffuser-benchmark`
+- `route-diffuser-rollout`
 - `route-diffuser-train`
 - `route-diffuser-infer`
 - `route-diffuser-eval`
@@ -34,6 +44,7 @@ Legacy compatibility wrappers still exist:
 Default config files:
 
 - data: `configs/data/synthetic.yaml`
+- data example for public NPZ format: `configs/data/npz_example.yaml`
 - model: `configs/model/base.yaml`
 - train: `configs/train/base.yaml`
 - inference: `configs/inference/base.yaml`
@@ -73,6 +84,9 @@ Output:
 
 - a JSON manifest under the requested path
 
+For NPZ-backed public-format data, point the data config at `configs/data/npz_example.yaml` and
+set `source_path` to your normalized `.npz` file.
+
 ## Train Planner
 
 Train the planner and write checkpoints plus a CSV training log.
@@ -109,6 +123,30 @@ Outputs:
 - `train_log.csv`
 - `latest.pt`
 
+## Export Dataset To NPZ
+
+Export canonical planning samples into the public `.npz` bridge format.
+
+Minimal example:
+
+```bash
+python scripts/export_dataset_npz.py \
+  --data-config configs/data/synthetic.yaml \
+  --output outputs/datasets/route_diffuser_synthetic.npz
+```
+
+Useful flags:
+
+- `--manifest-path`: export only a prepared subset
+- `--output`: target `.npz` file
+
+Typical use:
+
+1. generate a subset manifest
+2. export that subset to `.npz`
+3. point `configs/data/npz_example.yaml` at the exported file
+4. run `prepare_dataset.py` again on the NPZ-backed config if needed
+
 ## Infer Planner
 
 Sample future trajectories for one evaluation batch and write prediction artifacts.
@@ -135,6 +173,126 @@ Outputs:
 
 - `predictions.pt`
 - `prediction_plot.png`
+
+## Export ONNX
+
+Export the tensor-only planner denoiser core to ONNX.
+
+Minimal example:
+
+```bash
+python scripts/export_onnx.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/base.yaml \
+  --output outputs/onnx/planner_denoiser.onnx
+```
+
+Useful flags:
+
+- `--checkpoint`: export a trained checkpoint
+- `--manifest-path`: export using a prepared subset
+- `--output`: target ONNX file path
+- `--metadata-output`: target JSON metadata path
+- `--batch-size`: example batch used for tracing
+- `--device`: `cpu`, `cuda`, or `auto`
+- `--opset-version`: ONNX opset version
+- `--static-batch`: disable dynamic batch axes
+
+Important note:
+
+- this command exports the denoiser core, not the full iterative DDPM sampling loop
+- the exported graph corresponds to:
+  canonical scene tensors + noisy trajectory + timestep -> predicted noise
+
+## Check ONNX Parity
+
+Compare the exported ONNX denoiser core against the PyTorch wrapper on one batch.
+
+Minimal example:
+
+```bash
+python scripts/check_onnx_parity.py \
+  --onnx-path outputs/onnx/planner_denoiser.onnx \
+  --data-config configs/data/synthetic.yaml
+```
+
+Useful flags:
+
+- `--checkpoint`: parity-check a trained checkpoint
+- `--manifest-path`: parity-check on a prepared subset
+- `--output`: target JSON report path
+- `--batch-size`: parity-check batch size
+- `--device`: torch-side device, recommended `cpu` for light checks
+- `--atol`: absolute tolerance
+- `--rtol`: relative tolerance
+
+Output:
+
+- `parity_report.json`
+
+This command requires `onnxruntime`.
+
+## Benchmark Denoiser Core
+
+Run a lightweight latency benchmark for the PyTorch denoiser core.
+
+Minimal example:
+
+```bash
+python scripts/benchmark_infer.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/base.yaml \
+  --output outputs/benchmarks/denoiser_core_benchmark.json \
+  --device cpu
+```
+
+Useful flags:
+
+- `--checkpoint`: benchmark a trained checkpoint
+- `--manifest-path`: benchmark a prepared subset
+- `--output`: target JSON report path
+- `--batch-size`: benchmark batch size
+- `--warmup-iterations`: warmup count before timing
+- `--iterations`: measured iterations
+- `--device`: `cpu`, `cuda`, or `auto`
+
+Output:
+
+- `denoiser_core_benchmark.json`
+
+This benchmark only measures the denoiser core forward path, not the full iterative sampling loop.
+
+## Closed-Loop Rollout
+
+Run a lightweight receding-horizon rollout on one scenario.
+
+Minimal example:
+
+```bash
+python scripts/rollout_planner.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/base.yaml \
+  --output-dir outputs/rollout \
+  --device cpu
+```
+
+Useful flags:
+
+- `--checkpoint`: rollout a trained checkpoint
+- `--manifest-path`: rollout a prepared subset
+- `--output-dir`: target rollout artifact directory
+- `--num-steps`: rollout horizon in replanning steps
+- `--num-samples`: candidate samples per step
+- `--device`: `cpu`, `cuda`, or `auto`
+
+Outputs:
+
+- `rollout_trace.pt`
+- `rollout_summary.json`
+- `rollout_summary.md`
+- `rollout_plot.png`
+
+This is a lightweight closed-loop planner loop, not a full simulator service.
 
 ## Evaluate Planner
 
@@ -233,3 +391,30 @@ Default output roots:
 - inference: `outputs/infer/`
 - evaluation: `outputs/eval/`
 - portfolio demo: `outputs/portfolio_demo/`
+
+## Public NPZ Format
+
+The first public-format adapter uses one `.npz` file containing canonical scene tensors.
+
+Required keys:
+
+- `ego_current_state`
+- `neighbor_history`
+- `neighbor_history_mask`
+- `lane_polylines`
+- `lane_polylines_mask`
+- `route_lanes`
+- `route_lanes_mask`
+- `future_ego_trajectory`
+- `future_ego_mask`
+
+Optional key:
+
+- `scenario_name`
+
+Expected leading batch dimension:
+
+- each array should have shape `[N, ...]`
+- all arrays must agree on `N`
+
+This adapter is meant as a public bridge format, not as the final large-scale dataset interface.
