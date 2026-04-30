@@ -127,14 +127,16 @@ Available encoder-scale configs:
 - `configs/model/base.yaml`
 - `configs/model/encoder_small.yaml`
 - `configs/model/encoder_wide.yaml`
+- `configs/model/encoder_attention.yaml`
 
 These correspond to:
 
-| Config | `hidden_dim` | `time_dim` | `decoder_down_dims` | Intended Use |
-| --- | --- | --- | --- | --- |
-| `base.yaml` | `128` | `128` | `[128, 256]` | default |
-| `encoder_small.yaml` | `96` | `96` | `[96, 192]` | lighter model / lower cost |
-| `encoder_wide.yaml` | `192` | `192` | `[192, 384]` | higher-capacity model |
+| Config | `hidden_dim` | `time_dim` | `decoder_down_dims` | Fusion | Intended Use |
+| --- | --- | --- | --- | --- | --- |
+| `base.yaml` | `128` | `128` | `[128, 256]` | `concat_mlp` | default |
+| `encoder_small.yaml` | `96` | `96` | `[96, 192]` | `concat_mlp` | lighter model / lower cost |
+| `encoder_wide.yaml` | `192` | `192` | `[192, 384]` | `concat_mlp` | higher-capacity model |
+| `encoder_attention.yaml` | `128` | `128` | `[128, 256]` | `token_attention` | explicit modality-token fusion |
 
 ## Recommended Encoder Comparison Order
 
@@ -142,11 +144,13 @@ Run comparisons in this order:
 
 1. `base.yaml` vs `encoder_small.yaml`
 2. `base.yaml` vs `encoder_wide.yaml`
+3. `base.yaml` vs `encoder_attention.yaml`
 
 That sequence tells you:
 
 - whether the current model is overbuilt for the synthetic setting
 - whether widening the encoder moves metrics enough to justify extra cost
+- whether explicit attention fusion changes planning quality at the same hidden size
 
 ## Encoder Comparison Guidance
 

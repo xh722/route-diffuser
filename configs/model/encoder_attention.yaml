@@ -20,6 +20,6 @@ learned_scorer_weight: 0.0
 scorer_num_candidates: 4
 scorer_candidate_noise_scale: 0.5
 scorer_target_temperature: 0.5
-scene_fusion_mode: concat_mlp
+scene_fusion_mode: token_attention
 scene_attention_heads: 4
-scene_attention_layers: 1
+scene_attention_layers: 2

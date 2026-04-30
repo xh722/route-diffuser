@@ -67,6 +67,20 @@ def test_training_loss_returns_finite_scorer_terms_when_enabled() -> None:
     assert 0.0 <= float(outputs["scorer_accuracy"].item()) <= 1.0
 
 
+def test_attention_scene_fusion_mode_runs_forward() -> None:
+    batch = build_batch()
+    model = DiffusionPlanner(
+        DiffusionPlannerConfig(
+            diffusion_steps=4,
+            scene_fusion_mode="token_attention",
+            scene_attention_layers=1,
+        )
+    )
+    predictions = model.sample(batch, num_samples=1)
+
+    assert predictions.shape == (batch.batch_size, 1, 16, 6)
+
+
 def test_one_epoch_training_smoke() -> None:
     dataset = SyntheticPlanningDataset(SyntheticDatasetConfig(num_samples=4))
     dataloader = DataLoader(

@@ -49,6 +49,9 @@ class DiffusionPlannerConfig:
     scorer_num_candidates: int = 4
     scorer_candidate_noise_scale: float = 0.5
     scorer_target_temperature: float = 0.5
+    scene_fusion_mode: str = "concat_mlp"
+    scene_attention_heads: int = 4
+    scene_attention_layers: int = 1
 
     @classmethod
     def from_mapping(cls, values: dict[str, Any]) -> "DiffusionPlannerConfig":
@@ -72,6 +75,9 @@ class DiffusionPlanner(nn.Module):
             neighbor_dim=config.neighbor_dim,
             lane_dim=config.lane_dim,
             hidden_dim=config.hidden_dim,
+            fusion_mode=config.scene_fusion_mode,
+            attention_heads=config.scene_attention_heads,
+            attention_layers=config.scene_attention_layers,
         )
         self.decoder = DiffusionDecoder(
             trajectory_dim=config.trajectory_dim,

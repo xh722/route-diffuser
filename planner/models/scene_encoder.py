@@ -74,6 +74,32 @@ class SetEncoder(nn.Module):
         return self.output_projection(pooled)
 
 
+class AttentionFusionBlock(nn.Module):
+    """Fuse modality tokens with lightweight self-attention."""
+
+    def __init__(self, hidden_dim: int, num_heads: int) -> None:
+        super().__init__()
+        self.norm1 = nn.LayerNorm(hidden_dim)
+        self.attention = nn.MultiheadAttention(
+            embed_dim=hidden_dim,
+            num_heads=num_heads,
+            batch_first=True,
+        )
+        self.norm2 = nn.LayerNorm(hidden_dim)
+        self.mlp = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim * 2),
+            nn.SiLU(),
+            nn.Linear(hidden_dim * 2, hidden_dim),
+        )
+
+    def forward(self, tokens: torch.Tensor) -> torch.Tensor:
+        normalized = self.norm1(tokens)
+        attended, _ = self.attention(normalized, normalized, normalized, need_weights=False)
+        tokens = tokens + attended
+        tokens = tokens + self.mlp(self.norm2(tokens))
+        return tokens
+
+
 class SceneEncoder(nn.Module):
     """Encode planner scene tensors into a single global context vector."""
 
@@ -83,8 +109,19 @@ class SceneEncoder(nn.Module):
         neighbor_dim: int,
         lane_dim: int,
         hidden_dim: int,
+        fusion_mode: str = "concat_mlp",
+        attention_heads: int = 4,
+        attention_layers: int = 1,
     ) -> None:
         super().__init__()
+        if fusion_mode not in {"concat_mlp", "token_attention"}:
+            raise ValueError(
+                f"Unsupported fusion_mode {fusion_mode!r}; expected concat_mlp or token_attention"
+            )
+        if attention_layers <= 0:
+            raise ValueError("attention_layers must be positive")
+
+        self.fusion_mode = fusion_mode
         self.ego_projection = nn.Sequential(
             nn.Linear(ego_dim, hidden_dim),
             nn.SiLU(),
@@ -93,11 +130,24 @@ class SceneEncoder(nn.Module):
         self.neighbor_encoder = SetEncoder(input_dim=neighbor_dim, hidden_dim=hidden_dim)
         self.lane_encoder = SetEncoder(input_dim=lane_dim, hidden_dim=hidden_dim)
         self.route_encoder = SetEncoder(input_dim=lane_dim, hidden_dim=hidden_dim)
-        self.fusion = nn.Sequential(
+        self.concat_fusion = nn.Sequential(
             nn.LayerNorm(hidden_dim * 4),
             nn.Linear(hidden_dim * 4, hidden_dim * 2),
             nn.SiLU(),
             nn.Linear(hidden_dim * 2, hidden_dim),
+        )
+        self.modality_embeddings = nn.Parameter(torch.randn(4, hidden_dim) * 0.02)
+        self.attention_blocks = nn.ModuleList(
+            [
+                AttentionFusionBlock(hidden_dim=hidden_dim, num_heads=attention_heads)
+                for _ in range(attention_layers)
+            ]
+        )
+        self.attention_output = nn.Sequential(
+            nn.LayerNorm(hidden_dim * 2),
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, hidden_dim),
         )
 
     def forward(self, scene_batch: CanonicalSceneBatch) -> torch.Tensor:
@@ -115,8 +165,22 @@ class SceneEncoder(nn.Module):
             scene_batch.route_lanes,
             scene_batch.route_lanes_mask,
         )
-        fused = torch.cat(
+        if self.fusion_mode == "concat_mlp":
+            fused = torch.cat(
+                [ego_feature, neighbor_feature, lane_feature, route_feature],
+                dim=-1,
+            )
+            return self.concat_fusion(fused)
+
+        modality_tokens = torch.stack(
             [ego_feature, neighbor_feature, lane_feature, route_feature],
-            dim=-1,
+            dim=1,
         )
-        return self.fusion(fused)
+        modality_tokens = modality_tokens + self.modality_embeddings.unsqueeze(0)
+        for block in self.attention_blocks:
+            modality_tokens = block(modality_tokens)
+
+        ego_token = modality_tokens[:, 0]
+        pooled_token = modality_tokens.mean(dim=1)
+        fused = torch.cat([ego_token, pooled_token], dim=-1)
+        return self.attention_output(fused)
