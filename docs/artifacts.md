@@ -217,11 +217,13 @@ Main files:
 
 - `scorer_ablation_matrix.json`
 - `scorer_ablation_matrix.md`
+- `encoder_ablation_matrix.json`
+- `encoder_ablation_matrix.md`
 
 Purpose:
 
-- aggregates the standard scorer config set into one summary artifact
-- provides baseline deltas against `heuristic_only.yaml`
+- aggregates standard config sets into one summary artifact
+- provides baseline deltas against the configured ablation baseline
 
 ## Evaluation Artifacts
 

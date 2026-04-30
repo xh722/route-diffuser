@@ -377,10 +377,26 @@ Default config set:
 - `configs/model/learned_scorer.yaml`
 - `configs/model/learned_scorer_strong.yaml`
 
+Useful flags:
+
+- `--matrix scorer`
+- `--matrix encoder`
+- `--model-configs ...` to override the preset config set
+- `--baseline-config ...` to override the baseline
+
+Encoder matrix example:
+
+```bash
+python scripts/run_ablation_matrix.py \
+  --matrix encoder \
+  --output-dir outputs/ablations/encoder_matrix \
+  --device cpu
+```
+
 Outputs:
 
-- `scorer_ablation_matrix.json`
-- `scorer_ablation_matrix.md`
+- `scorer_ablation_matrix.json/.md`
+- `encoder_ablation_matrix.json/.md`
 
 This is the preferred command when you want one compact summary instead of multiple manual compare
 invocations.

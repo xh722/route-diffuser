@@ -69,6 +69,15 @@ python scripts/compare_scorer.py \
   --device cpu
 ```
 
+Matrix shortcut:
+
+```bash
+python scripts/run_ablation_matrix.py \
+  --matrix scorer \
+  --output-dir outputs/ablations/scorer_matrix \
+  --device cpu
+```
+
 ## What To Watch
 
 Primary metrics:
@@ -153,3 +162,12 @@ When comparing encoder configs, keep these fixed:
 
 Do not mix encoder width changes with scorer-weight changes in the same comparison if you want
 clean attribution.
+
+Encoder matrix shortcut:
+
+```bash
+python scripts/run_ablation_matrix.py \
+  --matrix encoder \
+  --output-dir outputs/ablations/encoder_matrix \
+  --device cpu
+```

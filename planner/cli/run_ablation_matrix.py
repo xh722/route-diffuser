@@ -1,4 +1,4 @@
-"""Run a small scorer ablation matrix and summarize the results."""
+"""Run a small ablation matrix and summarize the results."""
 
 from __future__ import annotations
 
@@ -11,12 +11,25 @@ from planner.cli.common import load_dataset_bundle, load_planner_model, resolve_
 from planner.common import load_yaml_config, set_seed
 from planner.trainers import evaluate_model_detailed
 
-DEFAULT_MODEL_CONFIGS = [
+DEFAULT_SCORER_CONFIGS = [
     "configs/model/heuristic_only.yaml",
     "configs/model/learned_scorer_light.yaml",
     "configs/model/learned_scorer.yaml",
     "configs/model/learned_scorer_strong.yaml",
 ]
+DEFAULT_ENCODER_CONFIGS = [
+    "configs/model/base.yaml",
+    "configs/model/encoder_small.yaml",
+    "configs/model/encoder_wide.yaml",
+]
+DEFAULT_PRESETS = {
+    "scorer": DEFAULT_SCORER_CONFIGS,
+    "encoder": DEFAULT_ENCODER_CONFIGS,
+}
+DEFAULT_BASELINES = {
+    "scorer": "configs/model/heuristic_only.yaml",
+    "encoder": "configs/model/base.yaml",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,13 +43,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-samples", type=int, default=None)
     parser.add_argument("--device", default="cpu")
     parser.add_argument(
+        "--matrix",
+        choices=["scorer", "encoder"],
+        default="scorer",
+    )
+    parser.add_argument(
         "--model-configs",
         nargs="*",
-        default=DEFAULT_MODEL_CONFIGS,
+        default=None,
     )
     parser.add_argument(
         "--baseline-config",
-        default="configs/model/heuristic_only.yaml",
+        default="",
     )
     return parser.parse_args()
 
@@ -53,9 +71,28 @@ def _config_name(path: str) -> str:
     return Path(path).stem
 
 
+def _resolve_model_configs(args: argparse.Namespace) -> tuple[list[str], str]:
+    if args.model_configs:
+        model_configs = list(args.model_configs)
+    else:
+        model_configs = list(DEFAULT_PRESETS[args.matrix])
+    baseline_config = args.baseline_config or DEFAULT_BASELINES[args.matrix]
+    return model_configs, baseline_config
+
+
+def _summarize_model_config(model_config: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "hidden_dim": int(model_config.get("hidden_dim", 0)),
+        "time_dim": int(model_config.get("time_dim", 0)),
+        "decoder_down_dims": list(model_config.get("decoder_down_dims", [])),
+        "learned_scorer_weight": float(model_config.get("learned_scorer_weight", 0.0)),
+    }
+
+
 def build_ablation_matrix_payload(
     runs: list[dict[str, Any]],
     *,
+    matrix_name: str,
     baseline_config_name: str,
     metadata: dict[str, Any],
 ) -> dict[str, Any]:
@@ -77,7 +114,7 @@ def build_ablation_matrix_payload(
             {
                 "config_name": run["config_name"],
                 "model_config": run["model_config"],
-                "learned_scorer_weight": run["learned_scorer_weight"],
+                "config_summary": run["config_summary"],
                 "selection_strategy": run["selection_strategy"],
                 "overall_metrics": run["overall_metrics"],
                 "candidate_set_metrics": run["candidate_set_metrics"],
@@ -93,7 +130,8 @@ def build_ablation_matrix_payload(
         )
 
     return {
-        "report_type": "scorer_ablation_matrix",
+        "report_type": f"{matrix_name}_ablation_matrix",
+        "matrix_name": matrix_name,
         "baseline_config_name": baseline_config_name,
         "runs": comparison_rows,
         "metadata": metadata,
@@ -102,19 +140,21 @@ def build_ablation_matrix_payload(
 
 def build_ablation_markdown(payload: dict[str, Any]) -> str:
     lines = [
-        "# RouteDiffuser Scorer Ablation Matrix",
+        f"# RouteDiffuser {payload['matrix_name'].title()} Ablation Matrix",
         "",
         f"- Baseline: `{payload['baseline_config_name']}`",
         "",
-        "| Config | Weight | Selection | ADE | FDE | Route Error | Collision Rate |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
+        "| Config | Hidden | Scorer Weight | Selection | ADE | FDE | Route Error | Collision Rate |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for run in payload["runs"]:
         metrics = run["overall_metrics"]
+        summary = run["config_summary"]
         lines.append(
             "| "
             f"`{run['config_name']}` | "
-            f"{run['learned_scorer_weight']:.2f} | "
+            f"{summary['hidden_dim']} | "
+            f"{summary['learned_scorer_weight']:.2f} | "
             f"`{run['selection_strategy']}` | "
             f"{metrics.get('ade', float('nan')):.3f} | "
             f"{metrics.get('fde', float('nan')):.3f} | "
@@ -130,6 +170,7 @@ def main() -> None:
     seed = int(infer_config.get("seed", 7))
 
     batch_size = args.batch_size or int(infer_config.get("batch_size", 4))
+    model_config_paths, baseline_config = _resolve_model_configs(args)
     data_config, _, dataset_config, dataloader = load_dataset_bundle(
         args.data_config,
         batch_size=batch_size,
@@ -141,7 +182,7 @@ def main() -> None:
 
     num_samples = args.num_samples or int(infer_config.get("num_samples", 3))
     run_summaries: list[dict[str, Any]] = []
-    for model_config_path in args.model_configs:
+    for model_config_path in model_config_paths:
         set_seed(seed)
         model_config, model = load_planner_model(
             model_config_path,
@@ -168,18 +209,17 @@ def main() -> None:
             {
                 "config_name": _config_name(model_config_path),
                 "model_config": model_config_path,
-                "learned_scorer_weight": float(
-                    model_config.get("learned_scorer_weight", 0.0)
-                ),
+                "config_summary": _summarize_model_config(model_config),
                 "selection_strategy": report.selection.strategy,
                 "overall_metrics": report.overall_metrics,
                 "candidate_set_metrics": report.candidate_set_metrics,
             }
         )
 
-    baseline_name = _config_name(args.baseline_config)
+    baseline_name = _config_name(baseline_config)
     payload = build_ablation_matrix_payload(
         run_summaries,
+        matrix_name=args.matrix,
         baseline_config_name=baseline_name,
         metadata={
             "dataset_name": str(getattr(dataset_config, "dataset_name", "unknown_dataset")),
@@ -188,13 +228,14 @@ def main() -> None:
             "device": str(device),
             "batch_size": batch_size,
             "num_samples": num_samples,
+            "model_configs": model_config_paths,
         },
     )
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    json_path = output_dir / "scorer_ablation_matrix.json"
-    markdown_path = output_dir / "scorer_ablation_matrix.md"
+    json_path = output_dir / f"{args.matrix}_ablation_matrix.json"
+    markdown_path = output_dir / f"{args.matrix}_ablation_matrix.md"
     json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     markdown_path.write_text(build_ablation_markdown(payload), encoding="utf-8")
 
