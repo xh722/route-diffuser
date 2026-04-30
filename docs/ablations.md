@@ -119,6 +119,12 @@ python scripts/run_ablation_matrix.py \
   --device cpu
 ```
 
+This matrix now covers three scorer axes together:
+
+- scorer weight
+- candidate-set construction strategy
+- scorer target mode
+
 ## What To Watch
 
 Primary metrics:

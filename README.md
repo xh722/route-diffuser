@@ -11,6 +11,32 @@ resume: scene representation, conditional trajectory generation, evaluation, and
 ![RouteDiffuser demo plot](outputs/portfolio_demo/prediction_plot.png)
 ![RouteDiffuser scenario gallery](outputs/portfolio_demo/scenario_gallery.png)
 
+## Current Release Highlights
+
+### Data And Interfaces
+
+- Added a canonical scene contract for ego, neighbors, lane polylines, route polylines, and masks.
+- Added manifest-driven dataset preparation so experiments no longer depend on ad hoc sample slicing.
+- Added a public NPZ bridge format plus dataset statistics caching for reusable preprocessing artifacts.
+
+### Planning Model
+
+- Built a route-conditioned diffusion planner around a conditional 1D U-Net denoiser.
+- Added a learned trajectory scorer head on top of the planner context encoder.
+- Added structured scorer candidate-set strategies: noise perturbation, drift-based candidates, and mixed generation.
+- Added an attention-based scene fusion ablation in addition to the original concat-MLP encoder path.
+
+### Evaluation And Analysis
+
+- Added structured evaluation reports with overall, candidate-set, and scenario-level metrics.
+- Added scorer comparison, ablation matrix, and failure-analysis tooling for targeted debugging.
+- Added an experiment registry and leaderboard layer so results can be compared in one place.
+
+### Deployment And Runtime
+
+- Added ONNX export for the denoiser core, parity checks, and lightweight benchmark reporting.
+- Added a lightweight closed-loop rollout path with trace, summary, and plot artifacts.
+
 ## Why This Repo Exists
 
 Most autonomous driving projects cannot ship their real datasets, simulator stacks, or internal
@@ -28,6 +54,8 @@ evaluation infrastructure. This repository focuses on the part that can be shown
 - Built a route-conditioned planner that denoises trajectory residuals around a route prior.
 - Implemented DDPM-style training, iterative inference, and first-step anchoring to the current ego state.
 - Scored multiple sampled plans with route, clearance, and comfort heuristics instead of defaulting to the first sample.
+- Added learned and reward-aware scorer supervision paths instead of limiting selection to heuristic-only ranking.
+- Added candidate-set construction and scene-fusion ablations so model behavior can be studied rather than only showcased.
 - Modeled keep-lane, lane-change-left, lane-change-right, and curved-road scenarios in a reusable synthetic generator.
 - Packaged the project with training, inference, evaluation, and portfolio demo scripts.
 
@@ -74,6 +102,30 @@ That command produces a compact project showcase in `outputs/portfolio_demo/`:
 - `portfolio_summary.md`
 - `demo_checkpoint.pt`
 - `predictions.pt`
+
+## Changes By Area
+
+### Dataset Layer
+
+- `planner/datasets/` and `planner/datasets/adapters/` now support synthetic data, NPZ-backed public-format data, manifests, and cached statistics.
+
+### Model Layer
+
+- `planner/models/` now includes:
+  - the core diffusion planner
+  - a learned scorer head
+  - multiple scene-fusion variants
+  - scorer candidate-strategy variants
+
+### Evaluation Layer
+
+- `planner/reports/` and the evaluation scripts now emit machine-readable reports instead of one-off script outputs.
+- `planner/reports/registry.py` adds an experiment-registry layer for indexing evaluation, failure, and ablation artifacts.
+
+### Runtime Layer
+
+- `planner/export/` covers ONNX export, parity, and benchmarking.
+- `planner/rollout/` adds lightweight closed-loop replanning behavior.
 
 ## Command Surface
 
@@ -146,6 +198,12 @@ structured scenario generator / future dataset adapter
 
 The project now also supports a lightweight registry/leaderboard layer so evaluation and failure
 analysis outputs can be compared in one place instead of being read as isolated JSON files.
+
+## Why It Is More Than A Resume Project
+
+- The repo now exposes multiple genuine research axes: scorer weight, scorer target mode, candidate-set construction strategy, encoder width, and attention-based scene fusion.
+- The repo includes both average-metric evaluation and failure-focused analysis, which is closer to how real planning systems are judged.
+- The export, parity, benchmark, rollout, and registry layers make the project usable as a small planning research platform rather than a static demo.
 
 ## Resume-Friendly Project Framing
 

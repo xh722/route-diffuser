@@ -16,6 +16,9 @@ DEFAULT_SCORER_CONFIGS = [
     "configs/model/learned_scorer_light.yaml",
     "configs/model/learned_scorer.yaml",
     "configs/model/learned_scorer_strong.yaml",
+    "configs/model/learned_scorer_drift.yaml",
+    "configs/model/learned_scorer_mixed.yaml",
+    "configs/model/learned_scorer_reward.yaml",
 ]
 DEFAULT_ENCODER_CONFIGS = [
     "configs/model/base.yaml",
@@ -86,6 +89,11 @@ def _summarize_model_config(model_config: dict[str, Any]) -> dict[str, Any]:
         "time_dim": int(model_config.get("time_dim", 0)),
         "decoder_down_dims": list(model_config.get("decoder_down_dims", [])),
         "learned_scorer_weight": float(model_config.get("learned_scorer_weight", 0.0)),
+        "scorer_candidate_strategy": str(
+            model_config.get("scorer_candidate_strategy", "gt_prior_noise")
+        ),
+        "scorer_target_mode": str(model_config.get("scorer_target_mode", "ade")),
+        "scene_fusion_mode": str(model_config.get("scene_fusion_mode", "concat_mlp")),
     }
 
 
@@ -144,8 +152,8 @@ def build_ablation_markdown(payload: dict[str, Any]) -> str:
         "",
         f"- Baseline: `{payload['baseline_config_name']}`",
         "",
-        "| Config | Hidden | Scorer Weight | Selection | ADE | FDE | Route Error | Collision Rate |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Config | Hidden | Weight | Candidate Strategy | Target Mode | Fusion | Selection | ADE | FDE | Route Error | Collision Rate |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for run in payload["runs"]:
         metrics = run["overall_metrics"]
@@ -155,6 +163,9 @@ def build_ablation_markdown(payload: dict[str, Any]) -> str:
             f"`{run['config_name']}` | "
             f"{summary['hidden_dim']} | "
             f"{summary['learned_scorer_weight']:.2f} | "
+            f"`{summary['scorer_candidate_strategy']}` | "
+            f"`{summary['scorer_target_mode']}` | "
+            f"`{summary['scene_fusion_mode']}` | "
             f"`{run['selection_strategy']}` | "
             f"{metrics.get('ade', float('nan')):.3f} | "
             f"{metrics.get('fde', float('nan')):.3f} | "

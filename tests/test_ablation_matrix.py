@@ -9,7 +9,13 @@ def test_ablation_matrix_payload_builds_deltas() -> None:
             {
                 "config_name": "heuristic_only",
                 "model_config": "configs/model/heuristic_only.yaml",
-                "config_summary": {"hidden_dim": 128, "learned_scorer_weight": 0.0},
+                "config_summary": {
+                    "hidden_dim": 128,
+                    "learned_scorer_weight": 0.0,
+                    "scorer_candidate_strategy": "gt_prior_noise",
+                    "scorer_target_mode": "ade",
+                    "scene_fusion_mode": "concat_mlp",
+                },
                 "selection_strategy": "heuristic_route_clearance_comfort_scoring",
                 "overall_metrics": {"ade": 1.0, "fde": 2.0},
                 "candidate_set_metrics": {"oracle_ade": 0.8},
@@ -17,7 +23,13 @@ def test_ablation_matrix_payload_builds_deltas() -> None:
             {
                 "config_name": "learned_scorer",
                 "model_config": "configs/model/learned_scorer.yaml",
-                "config_summary": {"hidden_dim": 128, "learned_scorer_weight": 0.1},
+                "config_summary": {
+                    "hidden_dim": 128,
+                    "learned_scorer_weight": 0.1,
+                    "scorer_candidate_strategy": "gt_prior_noise",
+                    "scorer_target_mode": "ade",
+                    "scene_fusion_mode": "concat_mlp",
+                },
                 "selection_strategy": "hybrid_route_clearance_comfort_learned",
                 "overall_metrics": {"ade": 0.9, "fde": 1.8},
                 "candidate_set_metrics": {"oracle_ade": 0.75},
@@ -40,7 +52,13 @@ def test_ablation_matrix_payload_supports_encoder_matrix() -> None:
             {
                 "config_name": "base",
                 "model_config": "configs/model/base.yaml",
-                "config_summary": {"hidden_dim": 128, "learned_scorer_weight": 0.0},
+                "config_summary": {
+                    "hidden_dim": 128,
+                    "learned_scorer_weight": 0.0,
+                    "scorer_candidate_strategy": "gt_prior_noise",
+                    "scorer_target_mode": "ade",
+                    "scene_fusion_mode": "concat_mlp",
+                },
                 "selection_strategy": "heuristic_route_clearance_comfort_scoring",
                 "overall_metrics": {"ade": 1.0},
                 "candidate_set_metrics": {"oracle_ade": 0.8},
@@ -48,7 +66,13 @@ def test_ablation_matrix_payload_supports_encoder_matrix() -> None:
             {
                 "config_name": "encoder_small",
                 "model_config": "configs/model/encoder_small.yaml",
-                "config_summary": {"hidden_dim": 96, "learned_scorer_weight": 0.0},
+                "config_summary": {
+                    "hidden_dim": 96,
+                    "learned_scorer_weight": 0.0,
+                    "scorer_candidate_strategy": "gt_prior_noise",
+                    "scorer_target_mode": "ade",
+                    "scene_fusion_mode": "concat_mlp",
+                },
                 "selection_strategy": "heuristic_route_clearance_comfort_scoring",
                 "overall_metrics": {"ade": 1.1},
                 "candidate_set_metrics": {"oracle_ade": 0.82},

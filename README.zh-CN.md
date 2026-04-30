@@ -9,6 +9,32 @@
 ![RouteDiffuser demo plot](outputs/portfolio_demo/prediction_plot.png)
 ![RouteDiffuser scenario gallery](outputs/portfolio_demo/scenario_gallery.png)
 
+## 当前版本亮点
+
+### 数据与接口
+
+- 已经形成统一的场景张量契约，覆盖 ego、邻车、车道线、route polyline 和 mask。
+- 已经接入 manifest 驱动的数据准备方式，实验不再依赖脚本里临时切样本。
+- 已经提供公开 NPZ bridge format 和数据统计缓存，便于后续复用和接真实公开数据。
+
+### 规划模型
+
+- 已经实现 route-conditioned diffusion planner，核心去噪器是条件 1D U-Net。
+- 已经加入 learned trajectory scorer head，不再只有 heuristic 选择逻辑。
+- 已经加入结构化候选集策略：噪声扰动、漂移候选、混合候选。
+- 已经加入 attention-based scene fusion 作为显式结构对比线。
+
+### 评估与分析
+
+- 已经形成结构化评估报告，包含 overall、candidate-set、scenario-level 指标。
+- 已经补齐 scorer compare、ablation matrix、failure analysis 等分析工具。
+- 已经加入 experiment registry / leaderboard，把不同实验结果统一索引起来。
+
+### 部署与运行
+
+- 已经具备 ONNX 导出、parity 检查、轻量 benchmark。
+- 已经具备最小 closed-loop rollout 路径，以及 trace / summary / plot 产物。
+
 ## 这个仓库解决什么问题
 
 大多数自动驾驶项目都不能公开真实数据、仿真平台和内部部署链路，所以公开仓库往往只能停留在“模型片段”。这个仓库聚焦那些真正可以公开、也真正能体现工程能力的部分：
@@ -24,6 +50,8 @@
 - 已实现条件扩散规划模型，围绕路线先验做未来轨迹去噪。
 - 已实现 DDPM 风格训练、迭代采样和首帧锚定。
 - 已实现多候选轨迹打分，综合 route、clearance 和 comfort proxy 做选择。
+- 已接入 learned scorer 和 reward-aware scorer supervision，不再只停留在启发式打分。
+- 已接入 candidate-set strategy 和 scene-fusion ablation，使项目具备真正可研究的实验轴。
 - 已实现结构化 synthetic 场景，覆盖直行、左变道、右变道和缓弯。
 - 已补齐公开 CLI、数据 manifest、正式评估 report schema 和作品集 demo 脚本。
 
@@ -72,6 +100,25 @@ python scripts/demo_planner.py
 - `portfolio_summary.md`
 - `demo_checkpoint.pt`
 - `predictions.pt`
+
+## 按模块看这版改了什么
+
+### 数据层
+
+- `planner/datasets/` 和 `planner/datasets/adapters/` 已经支持 synthetic、NPZ、manifest 和 stats cache。
+
+### 模型层
+
+- `planner/models/` 现在不仅有 diffusion planner，还包含 learned scorer、candidate strategy 和多种 scene fusion 路线。
+
+### 评估层
+
+- `planner/reports/` 已经不只是普通评估报告，还包含 failure analysis 和 registry/leaderboard。
+
+### 运行层
+
+- `planner/export/` 已经覆盖 ONNX、parity、benchmark。
+- `planner/rollout/` 已经覆盖最小 closed-loop replanning。
 
 ## 命令入口
 
@@ -141,6 +188,12 @@ python scripts/demo_planner.py
 
 现在仓库也已经有一层轻量级 registry / leaderboard，可以把评估结果和 failure analysis
 统一放到一个结果视图里，而不是只看分散的 JSON 文件。
+
+## 为什么它已经不只是简历项目
+
+- 这个仓库已经有多条真正可研究的实验轴：scorer 权重、target mode、候选集构造策略、encoder 宽度、attention fusion。
+- 它已经不只看平均指标，还能看 failure case、worst-case 风险和多实验横向对比。
+- 数据桥接、部署导出、闭环 rollout、结果索引都已经成型，更接近一个小型规划研究平台，而不是静态展示仓库。
 
 ## 适合怎么描述到简历里
 

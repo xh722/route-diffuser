@@ -382,6 +382,9 @@ Default config set:
 - `configs/model/learned_scorer_light.yaml`
 - `configs/model/learned_scorer.yaml`
 - `configs/model/learned_scorer_strong.yaml`
+- `configs/model/learned_scorer_drift.yaml`
+- `configs/model/learned_scorer_mixed.yaml`
+- `configs/model/learned_scorer_reward.yaml`
 
 Useful flags:
 
