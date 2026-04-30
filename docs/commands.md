@@ -18,6 +18,7 @@ Script entry points:
 - `python scripts/compare_scorer.py`
 - `python scripts/run_ablation_matrix.py`
 - `python scripts/analyze_failures.py`
+- `python scripts/build_registry.py`
 - `python scripts/train_planner.py`
 - `python scripts/infer_planner.py`
 - `python scripts/eval_planner.py`
@@ -35,6 +36,7 @@ Installed command aliases after `pip install -e .[dev]`:
 - `route-diffuser-compare-scorer`
 - `route-diffuser-ablations`
 - `route-diffuser-failures`
+- `route-diffuser-registry`
 - `route-diffuser-train`
 - `route-diffuser-infer`
 - `route-diffuser-eval`
@@ -58,6 +60,7 @@ Default config files:
 - ablation config for light learned-scorer influence: `configs/model/learned_scorer_light.yaml`
 - ablation config for learned scorer experiments: `configs/model/learned_scorer.yaml`
 - ablation config for stronger learned-scorer influence: `configs/model/learned_scorer_strong.yaml`
+- candidate-strategy ablations: `configs/model/learned_scorer_drift.yaml`, `configs/model/learned_scorer_mixed.yaml`
 - encoder-scale ablations: `configs/model/encoder_small.yaml`, `configs/model/encoder_wide.yaml`, `configs/model/encoder_attention.yaml`
 - train: `configs/train/base.yaml`
 - inference: `configs/inference/base.yaml`
@@ -430,6 +433,36 @@ Outputs:
 
 - `failure_analysis.json`
 - `failure_analysis.md`
+
+## Build Registry
+
+Collect evaluation, failure-analysis, and ablation JSON outputs into one registry and leaderboard.
+
+Minimal example:
+
+```bash
+python scripts/build_registry.py \
+  outputs/eval/evaluation_report.json \
+  outputs/eval/failures/failure_analysis.json \
+  outputs/ablations/scorer_matrix/scorer_ablation_matrix.json \
+  --output-dir outputs/registry
+```
+
+Useful flags:
+
+- `--primary-metric`: leaderboard sorting metric, default `fde`
+- `--output-dir`: target directory for registry outputs
+
+Outputs:
+
+- `experiment_registry.json`
+- `leaderboard.md`
+
+The generated leaderboard combines:
+
+- aggregate evaluation metrics
+- selection strategy metadata
+- worst-case failure signals when matching failure reports are present
 
 Recommended ablation pair:
 

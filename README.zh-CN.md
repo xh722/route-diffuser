@@ -47,6 +47,7 @@ python scripts/demo_planner.py
 - `route-diffuser-compare-scorer`
 - `route-diffuser-ablations`
 - `route-diffuser-failures`
+- `route-diffuser-registry`
 - `route-diffuser-train`
 - `route-diffuser-infer`
 - `route-diffuser-eval`
@@ -81,6 +82,7 @@ python scripts/demo_planner.py
 - `python scripts/compare_scorer.py`
 - `python scripts/run_ablation_matrix.py`
 - `python scripts/analyze_failures.py`
+- `python scripts/build_registry.py`
 - `python scripts/train_planner.py`
 - `python scripts/infer_planner.py`
 - `python scripts/eval_planner.py`
@@ -136,6 +138,9 @@ python scripts/demo_planner.py
 - `docs/release_checklist.md`：发布检查清单
 - `docs/ablations.md`：实验矩阵和 scorer 对比说明
 - `ROADMAP.md`：项目完善路线图
+
+现在仓库也已经有一层轻量级 registry / leaderboard，可以把评估结果和 failure analysis
+统一放到一个结果视图里，而不是只看分散的 JSON 文件。
 
 ## 适合怎么描述到简历里
 

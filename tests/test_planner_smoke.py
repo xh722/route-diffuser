@@ -81,6 +81,25 @@ def test_attention_scene_fusion_mode_runs_forward() -> None:
     assert predictions.shape == (batch.batch_size, 1, 16, 6)
 
 
+def test_candidate_strategy_drift_builds_distinct_candidates() -> None:
+    batch = build_batch()
+    model = DiffusionPlanner(
+        DiffusionPlannerConfig(
+            scorer_num_candidates=4,
+            scorer_candidate_strategy="gt_prior_drift",
+        )
+    )
+    prior = model.build_trajectory_prior(batch)
+    candidates = model._build_scorer_candidate_set(
+        scene_batch=batch,
+        target_trajectory=batch.future_ego_trajectory,
+        trajectory_prior=prior,
+    )
+
+    assert candidates.shape == (batch.batch_size, 4, 16, 6)
+    assert not torch.allclose(candidates[:, 2], batch.future_ego_trajectory)
+
+
 def test_one_epoch_training_smoke() -> None:
     dataset = SyntheticPlanningDataset(SyntheticDatasetConfig(num_samples=4))
     dataloader = DataLoader(

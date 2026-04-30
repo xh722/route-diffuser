@@ -51,6 +51,7 @@ Installed command aliases are also available after `pip install -e .[dev]`:
 - `route-diffuser-compare-scorer`
 - `route-diffuser-ablations`
 - `route-diffuser-failures`
+- `route-diffuser-registry`
 - `route-diffuser-train`
 - `route-diffuser-infer`
 - `route-diffuser-eval`
@@ -83,6 +84,7 @@ Public entry points:
 - `python scripts/compare_scorer.py`
 - `python scripts/run_ablation_matrix.py`
 - `python scripts/analyze_failures.py`
+- `python scripts/build_registry.py`
 - `python scripts/train_planner.py`
 - `python scripts/infer_planner.py`
 - `python scripts/eval_planner.py`
@@ -141,6 +143,9 @@ structured scenario generator / future dataset adapter
 - `docs/release_checklist.md`: release-readiness checklist
 - `docs/ablations.md`: experiment matrix and scorer comparison guide
 - `ROADMAP.md`: execution plan for completing the public project
+
+The project now also supports a lightweight registry/leaderboard layer so evaluation and failure
+analysis outputs can be compared in one place instead of being read as isolated JSON files.
 
 ## Resume-Friendly Project Framing
 

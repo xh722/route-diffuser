@@ -246,6 +246,27 @@ Purpose:
 - aggregates standard config sets into one summary artifact
 - provides baseline deltas against the configured ablation baseline
 
+## Registry Artifacts
+
+Location:
+
+- `outputs/registry/`
+
+Produced by:
+
+- `python scripts/build_registry.py`
+
+Main files:
+
+- `experiment_registry.json`
+- `leaderboard.md`
+
+Purpose:
+
+- centralizes evaluation, failure-analysis, and ablation outputs
+- provides one sortable entry point for comparing experiments
+- exposes both aggregate metrics and worst-case failure signals in one summary view
+
 ## Evaluation Artifacts
 
 Location:

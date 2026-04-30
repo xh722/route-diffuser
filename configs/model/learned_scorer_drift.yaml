@@ -16,10 +16,10 @@ diffusion_steps: 32
 beta_start: 0.0001
 beta_end: 0.02
 scorer_hidden_dim: 128
-learned_scorer_weight: 0.0
+learned_scorer_weight: 0.10
 scorer_num_candidates: 4
 scorer_candidate_noise_scale: 0.5
-scorer_candidate_strategy: gt_prior_noise
+scorer_candidate_strategy: gt_prior_drift
 scorer_drift_longitudinal_scale: 2.0
 scorer_drift_lateral_scale: 1.0
 scorer_target_temperature: 0.5

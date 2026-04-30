@@ -48,6 +48,9 @@ class DiffusionPlannerConfig:
     learned_scorer_weight: float = 0.0
     scorer_num_candidates: int = 4
     scorer_candidate_noise_scale: float = 0.5
+    scorer_candidate_strategy: str = "gt_prior_noise"
+    scorer_drift_longitudinal_scale: float = 2.0
+    scorer_drift_lateral_scale: float = 1.0
     scorer_target_temperature: float = 0.5
     scene_fusion_mode: str = "concat_mlp"
     scene_attention_heads: int = 4
@@ -188,19 +191,127 @@ class DiffusionPlanner(nn.Module):
         candidates[:, 1] = trajectory_prior
 
         if num_candidates > 2:
-            noise = torch.randn(
-                batch_size,
-                num_candidates - 2,
-                horizon,
-                trajectory_dim,
-                device=device,
-                dtype=dtype,
-            )
-            noise[:, :, 0] = 0.0
-            perturbed = target_trajectory.unsqueeze(1) + self.config.scorer_candidate_noise_scale * noise
-            perturbed[:, :, 0] = scene_batch.ego_current_state.unsqueeze(1)
-            candidates[:, 2:] = perturbed
+            strategy = self.config.scorer_candidate_strategy
+            if strategy == "gt_prior_noise":
+                candidates[:, 2:] = self._noise_perturb_candidates(
+                    scene_batch=scene_batch,
+                    target_trajectory=target_trajectory,
+                    num_candidates=num_candidates - 2,
+                )
+            elif strategy == "gt_prior_drift":
+                candidates[:, 2:] = self._drift_candidates(
+                    scene_batch=scene_batch,
+                    target_trajectory=target_trajectory,
+                    num_candidates=num_candidates - 2,
+                )
+            elif strategy == "mixed":
+                drift_count = max((num_candidates - 2) // 2, 1)
+                noise_count = (num_candidates - 2) - drift_count
+                drift_candidates = self._drift_candidates(
+                    scene_batch=scene_batch,
+                    target_trajectory=target_trajectory,
+                    num_candidates=drift_count,
+                )
+                noise_candidates = self._noise_perturb_candidates(
+                    scene_batch=scene_batch,
+                    target_trajectory=target_trajectory,
+                    num_candidates=noise_count,
+                )
+                candidates[:, 2 : 2 + drift_count] = drift_candidates
+                if noise_count > 0:
+                    candidates[:, 2 + drift_count :] = noise_candidates
+            else:
+                raise ValueError(
+                    f"Unsupported scorer_candidate_strategy {strategy!r}; "
+                    "expected gt_prior_noise, gt_prior_drift, or mixed"
+                )
 
+        candidates[:, :, 0] = scene_batch.ego_current_state.unsqueeze(1)
+        return candidates
+
+    def _noise_perturb_candidates(
+        self,
+        *,
+        scene_batch: CanonicalSceneBatch,
+        target_trajectory: torch.Tensor,
+        num_candidates: int,
+    ) -> torch.Tensor:
+        if num_candidates <= 0:
+            return target_trajectory.new_zeros(
+                target_trajectory.shape[0], 0, target_trajectory.shape[1], target_trajectory.shape[2]
+            )
+        noise = torch.randn(
+            target_trajectory.shape[0],
+            num_candidates,
+            target_trajectory.shape[1],
+            target_trajectory.shape[2],
+            device=target_trajectory.device,
+            dtype=target_trajectory.dtype,
+        )
+        noise[:, :, 0] = 0.0
+        perturbed = (
+            target_trajectory.unsqueeze(1)
+            + self.config.scorer_candidate_noise_scale * noise
+        )
+        perturbed[:, :, 0] = scene_batch.ego_current_state.unsqueeze(1)
+        return perturbed
+
+    def _drift_candidates(
+        self,
+        *,
+        scene_batch: CanonicalSceneBatch,
+        target_trajectory: torch.Tensor,
+        num_candidates: int,
+    ) -> torch.Tensor:
+        if num_candidates <= 0:
+            return target_trajectory.new_zeros(
+                target_trajectory.shape[0], 0, target_trajectory.shape[1], target_trajectory.shape[2]
+            )
+
+        batch_size, horizon, trajectory_dim = target_trajectory.shape
+        device = target_trajectory.device
+        dtype = target_trajectory.dtype
+        fractions = torch.linspace(
+            1.0 / (num_candidates + 1),
+            num_candidates / (num_candidates + 1),
+            num_candidates,
+            device=device,
+            dtype=dtype,
+        )
+        signs = torch.where(
+            torch.arange(num_candidates, device=device) % 2 == 0,
+            target_trajectory.new_tensor(1.0),
+            target_trajectory.new_tensor(-1.0),
+        )
+        drift_x = (
+            self.config.scorer_drift_longitudinal_scale
+            * fractions
+            * signs
+        )
+        drift_y = (
+            self.config.scorer_drift_lateral_scale
+            * fractions
+            * signs.flip(0)
+        )
+        time_weights = torch.linspace(0.0, 1.0, horizon, device=device, dtype=dtype)
+
+        candidates = target_trajectory.unsqueeze(1).repeat(1, num_candidates, 1, 1)
+        candidates[..., 0] = (
+            candidates[..., 0]
+            + drift_x.view(1, num_candidates, 1) * time_weights.view(1, 1, horizon)
+        )
+        candidates[..., 1] = (
+            candidates[..., 1]
+            + drift_y.view(1, num_candidates, 1) * time_weights.view(1, 1, horizon)
+        )
+        if trajectory_dim >= 4:
+            heading_offsets = torch.atan2(
+                drift_y.view(1, num_candidates, 1).expand(batch_size, -1, horizon),
+                torch.ones(batch_size, num_candidates, horizon, device=device, dtype=dtype),
+            )
+            heading = torch.atan2(candidates[..., 3], candidates[..., 2]) + heading_offsets
+            candidates[..., 2] = torch.cos(heading)
+            candidates[..., 3] = torch.sin(heading)
         candidates[:, :, 0] = scene_batch.ego_current_state.unsqueeze(1)
         return candidates
 

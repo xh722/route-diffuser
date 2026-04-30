@@ -13,15 +13,19 @@ Available scorer-related model configs:
 - `configs/model/learned_scorer_light.yaml`
 - `configs/model/learned_scorer.yaml`
 - `configs/model/learned_scorer_strong.yaml`
+- `configs/model/learned_scorer_drift.yaml`
+- `configs/model/learned_scorer_mixed.yaml`
 
 These correspond to:
 
-| Config | `learned_scorer_weight` | Intended Use |
-| --- | --- | --- |
-| `heuristic_only.yaml` | `0.0` | baseline |
-| `learned_scorer_light.yaml` | `0.05` | gentle hybrid influence |
-| `learned_scorer.yaml` | `0.10` | default learned-scorer experiment |
-| `learned_scorer_strong.yaml` | `0.25` | aggressive hybrid influence |
+| Config | `learned_scorer_weight` | Candidate Strategy | Intended Use |
+| --- | --- | --- | --- |
+| `heuristic_only.yaml` | `0.0` | `gt_prior_noise` | baseline |
+| `learned_scorer_light.yaml` | `0.05` | `gt_prior_noise` | gentle hybrid influence |
+| `learned_scorer.yaml` | `0.10` | `gt_prior_noise` | default learned-scorer experiment |
+| `learned_scorer_strong.yaml` | `0.25` | `gt_prior_noise` | aggressive hybrid influence |
+| `learned_scorer_drift.yaml` | `0.10` | `gt_prior_drift` | structured candidate drift experiment |
+| `learned_scorer_mixed.yaml` | `0.10` | `mixed` | mixed noise + drift candidate set |
 
 ## Recommended Comparison Order
 
@@ -30,12 +34,15 @@ Run comparisons in this order:
 1. `heuristic_only.yaml` vs `learned_scorer.yaml`
 2. `heuristic_only.yaml` vs `learned_scorer_light.yaml`
 3. `heuristic_only.yaml` vs `learned_scorer_strong.yaml`
+4. `learned_scorer.yaml` vs `learned_scorer_drift.yaml`
+5. `learned_scorer.yaml` vs `learned_scorer_mixed.yaml`
 
 That sequence tells you:
 
 - whether the scorer helps at all
 - whether small scorer influence is safer
 - whether stronger scorer influence destabilizes selection
+- whether structured candidate generation is more informative than pure noise perturbation
 
 ## Suggested Commands
 
@@ -66,6 +73,26 @@ python scripts/compare_scorer.py \
   --data-config configs/data/synthetic.yaml \
   --model-config configs/model/learned_scorer_strong.yaml \
   --output outputs/eval/scorer_comparison_strong.json \
+  --device cpu
+```
+
+Structured drift scorer:
+
+```bash
+python scripts/compare_scorer.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/learned_scorer_drift.yaml \
+  --output outputs/eval/scorer_comparison_drift.json \
+  --device cpu
+```
+
+Mixed candidate scorer:
+
+```bash
+python scripts/compare_scorer.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/learned_scorer_mixed.yaml \
+  --output outputs/eval/scorer_comparison_mixed.json \
   --device cpu
 ```
 
@@ -111,14 +138,15 @@ If you change more than one of those at once, the scorer comparison becomes nois
 ## Current Scope
 
 These ablations only vary the scorer weight. They do not yet vary:
-
-- scene encoder architecture
-- candidate-set construction strategy
 - scorer hidden dimension
 - scorer candidate count
 - scorer target temperature
 
-Those can become the next ablation axes once the basic scorer comparison shows signal.
+Candidate-set strategy is now a first-class axis through:
+
+- `gt_prior_noise`
+- `gt_prior_drift`
+- `mixed`
 
 ## Encoder Config Set
 
