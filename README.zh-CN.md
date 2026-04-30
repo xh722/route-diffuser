@@ -46,6 +46,7 @@ python scripts/demo_planner.py
 - `route-diffuser-rollout`
 - `route-diffuser-compare-scorer`
 - `route-diffuser-ablations`
+- `route-diffuser-failures`
 - `route-diffuser-train`
 - `route-diffuser-infer`
 - `route-diffuser-eval`
@@ -79,6 +80,7 @@ python scripts/demo_planner.py
 - `python scripts/compute_dataset_stats.py`
 - `python scripts/compare_scorer.py`
 - `python scripts/run_ablation_matrix.py`
+- `python scripts/analyze_failures.py`
 - `python scripts/train_planner.py`
 - `python scripts/infer_planner.py`
 - `python scripts/eval_planner.py`

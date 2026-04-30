@@ -203,6 +203,27 @@ Purpose:
 - compares `heuristic` and `hybrid` selection under the same evaluation seed
 - reports metric deltas attributable to the learned scorer path
 
+## Failure Analysis Artifacts
+
+Location:
+
+- `outputs/eval/failures/`
+
+Produced by:
+
+- `python scripts/analyze_failures.py`
+
+Main files:
+
+- `failure_analysis.json`
+- `failure_analysis.md`
+
+Purpose:
+
+- surfaces the worst scenes under one chosen ranking metric
+- provides both overall and per-scenario failure lists
+- makes regression tracking and debugging much more actionable than only aggregate metrics
+
 ## Ablation Matrix Artifacts
 
 Location:

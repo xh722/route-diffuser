@@ -50,6 +50,7 @@ Installed command aliases are also available after `pip install -e .[dev]`:
 - `route-diffuser-rollout`
 - `route-diffuser-compare-scorer`
 - `route-diffuser-ablations`
+- `route-diffuser-failures`
 - `route-diffuser-train`
 - `route-diffuser-infer`
 - `route-diffuser-eval`
@@ -81,6 +82,7 @@ Public entry points:
 - `python scripts/compute_dataset_stats.py`
 - `python scripts/compare_scorer.py`
 - `python scripts/run_ablation_matrix.py`
+- `python scripts/analyze_failures.py`
 - `python scripts/train_planner.py`
 - `python scripts/infer_planner.py`
 - `python scripts/eval_planner.py`

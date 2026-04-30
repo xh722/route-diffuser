@@ -17,6 +17,7 @@ def test_public_cli_entrypoints_expose_help() -> None:
         "scripts/rollout_planner.py",
         "scripts/compare_scorer.py",
         "scripts/run_ablation_matrix.py",
+        "scripts/analyze_failures.py",
         "scripts/train_planner.py",
         "scripts/infer_planner.py",
         "scripts/eval_planner.py",

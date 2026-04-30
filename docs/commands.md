@@ -17,6 +17,7 @@ Script entry points:
 - `python scripts/rollout_planner.py`
 - `python scripts/compare_scorer.py`
 - `python scripts/run_ablation_matrix.py`
+- `python scripts/analyze_failures.py`
 - `python scripts/train_planner.py`
 - `python scripts/infer_planner.py`
 - `python scripts/eval_planner.py`
@@ -33,6 +34,7 @@ Installed command aliases after `pip install -e .[dev]`:
 - `route-diffuser-rollout`
 - `route-diffuser-compare-scorer`
 - `route-diffuser-ablations`
+- `route-diffuser-failures`
 - `route-diffuser-train`
 - `route-diffuser-infer`
 - `route-diffuser-eval`
@@ -400,6 +402,34 @@ Outputs:
 
 This is the preferred command when you want one compact summary instead of multiple manual compare
 invocations.
+
+## Analyze Failures
+
+Rank the worst scenes by one chosen metric and produce a failure-analysis report.
+
+Minimal example:
+
+```bash
+python scripts/analyze_failures.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/base.yaml \
+  --output-dir outputs/eval/failures \
+  --ranking-metric fde \
+  --device cpu
+```
+
+Useful flags:
+
+- `--selection-mode`: `auto`, `heuristic`, or `hybrid`
+- `--ranking-metric`: for example `fde`, `ade`, `route_error`
+- `--top-k`: number of worst cases to retain overall and per scenario
+- `--manifest-path`: restrict analysis to a subset
+- `--checkpoint`: analyze a trained checkpoint
+
+Outputs:
+
+- `failure_analysis.json`
+- `failure_analysis.md`
 
 Recommended ablation pair:
 
