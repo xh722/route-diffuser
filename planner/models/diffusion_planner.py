@@ -20,6 +20,7 @@ from planner.losses.diffusion import (
 from planner.models.diffusion_decoder import DiffusionDecoder
 from planner.models.scene_encoder import SceneEncoder
 from planner.models.trajectory_scorer import TrajectoryScorer
+from planner.objectives import trajectory_rewards
 from planner.preprocess import build_route_trajectory_prior
 
 
@@ -52,6 +53,7 @@ class DiffusionPlannerConfig:
     scorer_drift_longitudinal_scale: float = 2.0
     scorer_drift_lateral_scale: float = 1.0
     scorer_target_temperature: float = 0.5
+    scorer_target_mode: str = "ade"
     scene_fusion_mode: str = "concat_mlp"
     scene_attention_heads: int = 4
     scene_attention_layers: int = 1
@@ -317,19 +319,33 @@ class DiffusionPlanner(nn.Module):
 
     def _candidate_target_costs(
         self,
+        scene_batch: CanonicalSceneBatch,
         candidate_trajectories: torch.Tensor,
         target_trajectory: torch.Tensor,
         future_mask: torch.Tensor | None,
     ) -> torch.Tensor:
-        errors = torch.linalg.norm(
-            candidate_trajectories[..., :2] - target_trajectory.unsqueeze(1)[..., :2],
-            dim=-1,
-        )
-        if future_mask is None:
-            return errors.mean(dim=-1)
+        if self.config.scorer_target_mode == "ade":
+            errors = torch.linalg.norm(
+                candidate_trajectories[..., :2] - target_trajectory.unsqueeze(1)[..., :2],
+                dim=-1,
+            )
+            if future_mask is None:
+                return errors.mean(dim=-1)
 
-        weights = future_mask.to(errors.dtype).unsqueeze(1)
-        return (errors * weights).sum(dim=-1) / weights.sum(dim=-1).clamp(min=1.0)
+            weights = future_mask.to(errors.dtype).unsqueeze(1)
+            return (errors * weights).sum(dim=-1) / weights.sum(dim=-1).clamp(min=1.0)
+
+        if self.config.scorer_target_mode == "reward":
+            rewards = trajectory_rewards(
+                candidate_trajectories,
+                scene_batch,
+                time_delta=1.0 / 3.0,
+            )["reward"]
+            return -rewards
+
+        raise ValueError(
+            f"Unsupported scorer_target_mode {self.config.scorer_target_mode!r}; expected ade or reward"
+        )
 
     def training_loss(
         self, scene_batch: CanonicalSceneBatch, noise: torch.Tensor | None = None
@@ -375,6 +391,7 @@ class DiffusionPlanner(nn.Module):
             )
             predicted_scores = self.score_trajectories(scene_batch, candidate_trajectories)
             target_costs = self._candidate_target_costs(
+                scene_batch=scene_batch,
                 candidate_trajectories=candidate_trajectories,
                 target_trajectory=scene_batch.future_ego_trajectory,
                 future_mask=scene_batch.future_ego_mask,

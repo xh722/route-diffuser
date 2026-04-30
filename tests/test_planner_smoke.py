@@ -100,6 +100,20 @@ def test_candidate_strategy_drift_builds_distinct_candidates() -> None:
     assert not torch.allclose(candidates[:, 2], batch.future_ego_trajectory)
 
 
+def test_reward_target_mode_returns_finite_scorer_loss() -> None:
+    batch = build_batch()
+    model = DiffusionPlanner(
+        DiffusionPlannerConfig(
+            diffusion_steps=4,
+            learned_scorer_weight=0.1,
+            scorer_target_mode="reward",
+        )
+    )
+    outputs = model.training_loss(batch)
+
+    assert torch.isfinite(outputs["scorer_loss"])
+
+
 def test_one_epoch_training_smoke() -> None:
     dataset = SyntheticPlanningDataset(SyntheticDatasetConfig(num_samples=4))
     dataloader = DataLoader(

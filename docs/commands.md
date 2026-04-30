@@ -61,6 +61,7 @@ Default config files:
 - ablation config for learned scorer experiments: `configs/model/learned_scorer.yaml`
 - ablation config for stronger learned-scorer influence: `configs/model/learned_scorer_strong.yaml`
 - candidate-strategy ablations: `configs/model/learned_scorer_drift.yaml`, `configs/model/learned_scorer_mixed.yaml`
+- reward-aware scorer ablation: `configs/model/learned_scorer_reward.yaml`
 - encoder-scale ablations: `configs/model/encoder_small.yaml`, `configs/model/encoder_wide.yaml`, `configs/model/encoder_attention.yaml`
 - train: `configs/train/base.yaml`
 - inference: `configs/inference/base.yaml`

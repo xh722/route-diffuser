@@ -15,17 +15,19 @@ Available scorer-related model configs:
 - `configs/model/learned_scorer_strong.yaml`
 - `configs/model/learned_scorer_drift.yaml`
 - `configs/model/learned_scorer_mixed.yaml`
+- `configs/model/learned_scorer_reward.yaml`
 
 These correspond to:
 
-| Config | `learned_scorer_weight` | Candidate Strategy | Intended Use |
-| --- | --- | --- | --- |
-| `heuristic_only.yaml` | `0.0` | `gt_prior_noise` | baseline |
-| `learned_scorer_light.yaml` | `0.05` | `gt_prior_noise` | gentle hybrid influence |
-| `learned_scorer.yaml` | `0.10` | `gt_prior_noise` | default learned-scorer experiment |
-| `learned_scorer_strong.yaml` | `0.25` | `gt_prior_noise` | aggressive hybrid influence |
-| `learned_scorer_drift.yaml` | `0.10` | `gt_prior_drift` | structured candidate drift experiment |
-| `learned_scorer_mixed.yaml` | `0.10` | `mixed` | mixed noise + drift candidate set |
+| Config | `learned_scorer_weight` | Candidate Strategy | Target Mode | Intended Use |
+| --- | --- | --- | --- | --- |
+| `heuristic_only.yaml` | `0.0` | `gt_prior_noise` | `ade` | baseline |
+| `learned_scorer_light.yaml` | `0.05` | `gt_prior_noise` | `ade` | gentle hybrid influence |
+| `learned_scorer.yaml` | `0.10` | `gt_prior_noise` | `ade` | default learned-scorer experiment |
+| `learned_scorer_strong.yaml` | `0.25` | `gt_prior_noise` | `ade` | aggressive hybrid influence |
+| `learned_scorer_drift.yaml` | `0.10` | `gt_prior_drift` | `ade` | structured candidate drift experiment |
+| `learned_scorer_mixed.yaml` | `0.10` | `mixed` | `ade` | mixed noise + drift candidate set |
+| `learned_scorer_reward.yaml` | `0.10` | `gt_prior_noise` | `reward` | reward-aware scorer supervision |
 
 ## Recommended Comparison Order
 
@@ -36,6 +38,7 @@ Run comparisons in this order:
 3. `heuristic_only.yaml` vs `learned_scorer_strong.yaml`
 4. `learned_scorer.yaml` vs `learned_scorer_drift.yaml`
 5. `learned_scorer.yaml` vs `learned_scorer_mixed.yaml`
+6. `learned_scorer.yaml` vs `learned_scorer_reward.yaml`
 
 That sequence tells you:
 
@@ -43,6 +46,7 @@ That sequence tells you:
 - whether small scorer influence is safer
 - whether stronger scorer influence destabilizes selection
 - whether structured candidate generation is more informative than pure noise perturbation
+- whether reward-aware supervision behaves differently from pure ADE supervision
 
 ## Suggested Commands
 
@@ -93,6 +97,16 @@ python scripts/compare_scorer.py \
   --data-config configs/data/synthetic.yaml \
   --model-config configs/model/learned_scorer_mixed.yaml \
   --output outputs/eval/scorer_comparison_mixed.json \
+  --device cpu
+```
+
+Reward-aware scorer:
+
+```bash
+python scripts/compare_scorer.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/learned_scorer_reward.yaml \
+  --output outputs/eval/scorer_comparison_reward.json \
   --device cpu
 ```
 
@@ -147,6 +161,11 @@ Candidate-set strategy is now a first-class axis through:
 - `gt_prior_noise`
 - `gt_prior_drift`
 - `mixed`
+
+Target-mode supervision is also now a first-class axis through:
+
+- `ade`
+- `reward`
 
 ## Encoder Config Set
 
