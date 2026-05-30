@@ -30,5 +30,9 @@ def test_rollout_returns_trace_and_summary() -> None:
     assert result.executed_world_states.shape == (3, 6)
     assert result.selected_indices.shape == (2,)
     assert result.selected_scores.shape == (2,)
+    assert result.collision_flags.shape == (2,)
+    assert result.point_collision_flags.shape == (2,)
     assert "closed_loop_ade" in summary
     assert "route_error" in summary
+    assert "box_collision_rate" in summary
+    assert "point_collision_rate" in summary

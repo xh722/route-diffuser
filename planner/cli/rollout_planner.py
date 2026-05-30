@@ -39,6 +39,8 @@ def build_rollout_markdown(summary: dict[str, float | int | str], artifacts: dic
         f"- Closed-loop FDE: {summary['closed_loop_fde']}",
         f"- Route Error: {summary['route_error']}",
         f"- Collision Rate: {summary['collision_rate']}",
+        f"- Box Collision Rate: {summary['box_collision_rate']}",
+        f"- Point Collision Rate: {summary['point_collision_rate']}",
         f"- Mean Selected Index: {summary['mean_selected_index']}",
         f"- Mean Selected Score: {summary['mean_selected_score']}",
         "",
@@ -104,6 +106,7 @@ def main() -> None:
             "selected_indices": result.selected_indices.cpu(),
             "selected_scores": result.selected_scores.cpu(),
             "collision_flags": result.collision_flags.cpu(),
+            "point_collision_flags": result.point_collision_flags.cpu(),
             "metadata": {
                 "scenario_name": result.metadata["scenario_name"],
                 "route_world_mask": result.metadata["route_world_mask"].cpu(),

@@ -90,10 +90,12 @@ Responsibility:
 Key pieces:
 
 - `trajectory.py`: displacement, route, comfort, clearance, and candidate-set metrics
+- `collision.py`: oriented-box collision checks for planner-style safety diagnostics
 
 Why it matters:
 
 - metrics remain reusable across evaluation, reports, and future regression checks
+- box-collision metrics are closer to vehicle footprint checks than point-distance thresholds
 
 ### `planner/reports/`
 

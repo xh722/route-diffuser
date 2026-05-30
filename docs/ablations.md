@@ -15,6 +15,7 @@ Available scorer-related model configs:
 - `configs/model/learned_scorer_strong.yaml`
 - `configs/model/learned_scorer_drift.yaml`
 - `configs/model/learned_scorer_mixed.yaml`
+- `configs/model/learned_scorer_route_anchor.yaml`
 - `configs/model/learned_scorer_reward.yaml`
 
 These correspond to:
@@ -27,6 +28,7 @@ These correspond to:
 | `learned_scorer_strong.yaml` | `0.25` | `gt_prior_noise` | `ade` | aggressive hybrid influence |
 | `learned_scorer_drift.yaml` | `0.10` | `gt_prior_drift` | `ade` | structured candidate drift experiment |
 | `learned_scorer_mixed.yaml` | `0.10` | `mixed` | `ade` | mixed noise + drift candidate set |
+| `learned_scorer_route_anchor.yaml` | `0.10` | `route_anchor` | `ade` | lane-intention style route anchors |
 | `learned_scorer_reward.yaml` | `0.10` | `gt_prior_noise` | `reward` | reward-aware scorer supervision |
 
 ## Recommended Comparison Order
@@ -38,7 +40,8 @@ Run comparisons in this order:
 3. `heuristic_only.yaml` vs `learned_scorer_strong.yaml`
 4. `learned_scorer.yaml` vs `learned_scorer_drift.yaml`
 5. `learned_scorer.yaml` vs `learned_scorer_mixed.yaml`
-6. `learned_scorer.yaml` vs `learned_scorer_reward.yaml`
+6. `learned_scorer.yaml` vs `learned_scorer_route_anchor.yaml`
+7. `learned_scorer.yaml` vs `learned_scorer_reward.yaml`
 
 That sequence tells you:
 
@@ -46,6 +49,7 @@ That sequence tells you:
 - whether small scorer influence is safer
 - whether stronger scorer influence destabilizes selection
 - whether structured candidate generation is more informative than pure noise perturbation
+- whether lane-intention style anchors improve scorer supervision over generic drift/noise
 - whether reward-aware supervision behaves differently from pure ADE supervision
 
 ## Suggested Commands
@@ -110,6 +114,16 @@ python scripts/compare_scorer.py \
   --device cpu
 ```
 
+Route-anchor scorer:
+
+```bash
+python scripts/compare_scorer.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/learned_scorer_route_anchor.yaml \
+  --output outputs/eval/scorer_comparison_route_anchor.json \
+  --device cpu
+```
+
 Matrix shortcut:
 
 ```bash
@@ -134,6 +148,8 @@ Primary metrics:
 - `route_error`
 - `collision_rate`
 - `selected_score`
+- `heuristic_regret`
+- `matches_heuristic_best`
 
 Interpretation guidance:
 
@@ -141,6 +157,9 @@ Interpretation guidance:
 - lower `route_error` is better
 - lower `collision_rate` is better
 - `selected_score` is only meaningful relative to another run using the same scoring mode
+- lower `heuristic_regret` means the learned scorer is staying closer to the heuristic best candidate
+- higher `matches_heuristic_best` means selection more often agrees with the heuristic baseline
+- in hybrid mode, `matches_learned_best` and `learned_preference_regret` diagnose whether the combined score is following the learned preference head
 
 ## Keep These Fixed
 
@@ -167,6 +186,7 @@ Candidate-set strategy is now a first-class axis through:
 - `gt_prior_noise`
 - `gt_prior_drift`
 - `mixed`
+- `route_anchor`
 
 Target-mode supervision is also now a first-class axis through:
 

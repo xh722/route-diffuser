@@ -180,7 +180,7 @@ Main files:
 
 Purpose:
 
-- `rollout_trace.pt`: raw executed trajectory trace, selected candidate indices, and collision flags
+- `rollout_trace.pt`: raw executed trajectory trace, selected candidate indices, box-collision flags, and point-distance collision flags
 - `rollout_summary.json/.md`: lightweight closed-loop metrics and artifact pointers
 - `rollout_plot.png`: executed path against the route and optional reference path
 

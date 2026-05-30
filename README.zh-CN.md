@@ -88,6 +88,7 @@ python scripts/demo_planner.py
 - [docs/architecture.md](docs/architecture.md)
 - [docs/release_checklist.md](docs/release_checklist.md)
 - [docs/ablations.md](docs/ablations.md)
+- [docs/portfolio_case_study.md](docs/portfolio_case_study.md)
 
 上面的 demo 命令会在 `outputs/portfolio_demo/` 下生成一套完整展示产物：
 

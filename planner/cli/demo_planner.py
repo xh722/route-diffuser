@@ -57,6 +57,8 @@ def round_nested_metrics(
 
 
 def build_portfolio_markdown(summary: dict[str, object]) -> str:
+    open_loop_metrics = summary["open_loop_metrics"]
+    candidate_metrics = summary["candidate_metrics"]
     lines = [
         f"# {summary['project_title']}",
         "",
@@ -84,13 +86,15 @@ def build_portfolio_markdown(summary: dict[str, object]) -> str:
             f"- Progress: {summary['open_loop_metrics']['progress']}",
             f"- Min Clearance: {summary['open_loop_metrics']['min_clearance']}",
             f"- Collision Rate: {summary['open_loop_metrics']['collision_rate']}",
+            f"- Box Collision Rate: {open_loop_metrics.get('box_collision_rate', summary['open_loop_metrics']['collision_rate'])}",
+            f"- Point Collision Rate: {open_loop_metrics.get('point_collision_rate', 'n/a')}",
             f"- Comfort Violation Rate: {summary['open_loop_metrics']['comfort_violation_rate']}",
             "",
             "## Candidate Set Metrics",
-            f"- Oracle ADE: {summary['candidate_metrics']['oracle_ade']}",
-            f"- Oracle FDE: {summary['candidate_metrics']['oracle_fde']}",
-            f"- Oracle Route Error: {summary['candidate_metrics']['oracle_route_error']}",
-            f"- Final-State Diversity: {summary['candidate_metrics']['candidate_final_diversity']}",
+            f"- Oracle ADE: {candidate_metrics['oracle_ade']}",
+            f"- Oracle FDE: {candidate_metrics['oracle_fde']}",
+            f"- Oracle Route Error: {candidate_metrics['oracle_route_error']}",
+            f"- Final-State Diversity: {candidate_metrics['candidate_final_diversity']}",
             "",
             "## Scenario Breakdown",
         ]
@@ -109,6 +113,8 @@ def build_portfolio_markdown(summary: dict[str, object]) -> str:
             f"- Candidate Samples: {summary['selection']['num_samples']}",
             f"- Mean Selected Index: {summary['open_loop_metrics']['selected_index']}",
             f"- Mean Selected Score: {summary['open_loop_metrics']['selected_score']}",
+            f"- Heuristic Regret: {open_loop_metrics.get('heuristic_regret', 'n/a')}",
+            f"- Matches Heuristic Best: {open_loop_metrics.get('matches_heuristic_best', 'n/a')}",
             "",
             "## Resume Bullets",
         ]
@@ -290,7 +296,9 @@ def main() -> None:
             "Canonical scene schema for ego, neighbors, lanes, route polylines, and masks.",
             "Route-prior residual diffusion with a conditional 1D U-Net decoder.",
             "Optional multi-resolution pyramid noise inspired by a larger reference diffusion planner.",
-            "Heuristic candidate ranking over route adherence, clearance, and comfort instead of defaulting to the first sample.",
+            "Hybrid candidate ranking over route adherence, vehicle-footprint collision, comfort, and optional learned scorer signals.",
+            "Route-anchor candidate generation covering lane-intention style lateral and speed alternatives.",
+            "Scorer diagnostics that expose heuristic regret, learned preference regret, and selected-candidate agreement.",
             "Structured synthetic driving scenarios spanning keep-lane, lane changes, and curves.",
             "End-to-end scripts for training, inference, scenario-level evaluation, and portfolio artifact generation.",
         ],
@@ -313,14 +321,14 @@ def main() -> None:
             "time_delta": dataset_config.time_delta,
         },
         "resume_bullets": [
-            "Built a route-conditioned autonomous driving planner around a conditional diffusion policy.",
-            "Implemented route-prior residual diffusion with a conditional 1D U-Net decoder and iterative denoising sampler.",
-            "Added multi-sample candidate scoring, scenario-level evaluation, and multi-resolution diffusion noise inspired by a larger reference planner stack.",
+            "Built a route-conditioned autonomous driving planner around a conditional diffusion policy and canonical scene tensor interface.",
+            "Implemented route-prior residual diffusion with a conditional 1D U-Net decoder, iterative denoising sampler, and route-anchor candidate generation.",
+            "Added multi-sample candidate scoring, vehicle-footprint collision metrics, scorer diagnostics, scenario-level evaluation, and reproducible portfolio artifacts.",
         ],
         "next_extensions": [
             "Swap the synthetic generator with a dataset adapter for logged driving scenes.",
-            "Replace heuristic candidate scoring with a learned value or reward model.",
-            "Introduce reward modeling or RL fine-tuning on top of the planner boundary.",
+            "Calibrate the learned scorer against route-anchor candidate sets on real public-format data.",
+            "Introduce reward modeling or offline RL fine-tuning on top of the planner boundary.",
         ],
         "artifacts": {
             "checkpoint": str(checkpoint_path),

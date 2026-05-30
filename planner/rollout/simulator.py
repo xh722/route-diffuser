@@ -9,6 +9,7 @@ import torch
 
 from planner.datasets.schema import CanonicalSceneBatch
 from planner.inference import score_trajectory_candidates_for_mode
+from planner.metrics import box_collision_matrix
 from planner.preprocess import cos_sin_to_heading, heading_to_cos_sin
 
 
@@ -22,6 +23,7 @@ class RolloutResult:
     selected_indices: torch.Tensor
     selected_scores: torch.Tensor
     collision_flags: torch.Tensor
+    point_collision_flags: torch.Tensor
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -140,17 +142,27 @@ def _route_error_world(
 def _collision_flags_world(
     executed_world_states: torch.Tensor,
     neighbor_world_states: list[torch.Tensor],
+    neighbor_world_masks: list[torch.Tensor],
     threshold: float = 2.0,
-) -> torch.Tensor:
+) -> tuple[torch.Tensor, torch.Tensor]:
     if not neighbor_world_states:
-        return torch.zeros(executed_world_states.shape[0] - 1, dtype=torch.bool)
+        empty = torch.zeros(executed_world_states.shape[0] - 1, dtype=torch.bool)
+        return empty, empty
 
-    flags = []
+    box_flags = []
+    point_flags = []
     for step_index, ego_state in enumerate(executed_world_states[1:]):
-        neighbors = neighbor_world_states[step_index][..., :2]
+        neighbor_states = neighbor_world_states[step_index]
+        neighbor_mask = neighbor_world_masks[step_index]
+        neighbors = neighbor_states[..., :2]
         distances = torch.linalg.norm(neighbors - ego_state[:2], dim=-1)
-        flags.append(bool((distances < threshold).any().item()))
-    return torch.tensor(flags, dtype=torch.bool)
+        point_flags.append(bool(((distances < threshold) & neighbor_mask).any().item()))
+        box_collision = box_collision_matrix(
+            ego_state.view(1, 1, -1),
+            neighbor_states.view(1, neighbor_states.shape[0], 1, -1),
+        ).view(-1)
+        box_flags.append(bool((box_collision & neighbor_mask).any().item()))
+    return torch.tensor(box_flags, dtype=torch.bool), torch.tensor(point_flags, dtype=torch.bool)
 
 
 def summarize_rollout(result: RolloutResult) -> dict[str, float | int | str]:
@@ -169,6 +181,12 @@ def summarize_rollout(result: RolloutResult) -> dict[str, float | int | str]:
         ),
         "collision_rate": float(result.collision_flags.to(torch.float32).mean().item())
         if result.collision_flags.numel()
+        else 0.0,
+        "box_collision_rate": float(result.collision_flags.to(torch.float32).mean().item())
+        if result.collision_flags.numel()
+        else 0.0,
+        "point_collision_rate": float(result.point_collision_flags.to(torch.float32).mean().item())
+        if result.point_collision_flags.numel()
         else 0.0,
         "mean_selected_index": float(result.selected_indices.to(torch.float32).mean().item())
         if result.selected_indices.numel()
@@ -247,6 +265,7 @@ def rollout_planner(
     selected_indices: list[int] = []
     selected_scores: list[float] = []
     neighbor_world_states: list[torch.Tensor] = []
+    neighbor_world_masks: list[torch.Tensor] = []
 
     for _ in range(num_steps):
         predictions = model.sample(current_batch, num_samples=num_samples)
@@ -289,6 +308,7 @@ def rollout_planner(
             time_delta,
         )
         neighbor_world_states.append(advanced_history_world[:, -1])
+        neighbor_world_masks.append(advanced_history_mask[:, -1])
 
         lane_world = _polyline_local_to_world(
             current_batch.lane_polylines[0],
@@ -332,7 +352,11 @@ def rollout_planner(
     reference_tensor = (
         None if reference_world_states is None else torch.stack(reference_world_states, dim=0)
     )
-    collision_flags = _collision_flags_world(executed_tensor, neighbor_world_states)
+    collision_flags, point_collision_flags = _collision_flags_world(
+        executed_tensor,
+        neighbor_world_states,
+        neighbor_world_masks,
+    )
     scenario_names = list(scene_batch.metadata.get("scenario_names", []))
     scenario_name = scenario_names[0] if scenario_names else "unknown"
 
@@ -343,6 +367,7 @@ def rollout_planner(
         selected_indices=torch.tensor(selected_indices, dtype=torch.long),
         selected_scores=torch.tensor(selected_scores, dtype=executed_tensor.dtype),
         collision_flags=collision_flags,
+        point_collision_flags=point_collision_flags,
         metadata={
             "scenario_name": scenario_name,
             "route_world_mask": route_world_mask,

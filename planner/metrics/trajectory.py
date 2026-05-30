@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import torch
 
+from planner.metrics.collision import box_collision_matrix
+
 
 def _xy_error(predicted: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     return torch.linalg.norm(predicted[..., :2] - target[..., :2], dim=-1)
@@ -180,6 +182,10 @@ def neighbor_clearance_metrics(
     neighbor_history_mask: torch.Tensor,
     time_delta: float,
     collision_distance: float = 2.0,
+    ego_length: float = 4.8,
+    ego_width: float = 2.0,
+    neighbor_length: float = 4.8,
+    neighbor_width: float = 2.0,
 ) -> dict[str, torch.Tensor]:
     """Per-trajectory clearance metrics using linear neighbor extrapolation."""
 
@@ -201,6 +207,8 @@ def neighbor_clearance_metrics(
         last_state[..., :2].unsqueeze(2)
         + last_state[..., 4:6].unsqueeze(2) * time_offsets.view(1, 1, -1, 1)
     )
+    future_neighbor_states = last_state.unsqueeze(2).expand(-1, -1, horizon, -1).clone()
+    future_neighbor_states[..., :2] = future_neighbor_xy
 
     ego_xy = predicted[..., :2].unsqueeze(1)
     distances = torch.linalg.norm(ego_xy - future_neighbor_xy, dim=-1)
@@ -212,9 +220,21 @@ def neighbor_clearance_metrics(
         min_clearance,
         torch.full_like(min_clearance, float("inf")),
     )
-    collision = (distances < collision_distance).any(dim=(1, 2))
+    point_collision = (distances < collision_distance).any(dim=(1, 2))
+    box_collision = box_collision_matrix(
+        predicted,
+        future_neighbor_states,
+        ego_length=ego_length,
+        ego_width=ego_width,
+        object_length=neighbor_length,
+        object_width=neighbor_width,
+    )
+    box_collision = box_collision & valid_neighbors.unsqueeze(-1)
+    collision = box_collision.any(dim=(1, 2))
     return {
         "min_clearance": min_clearance,
+        "point_collision": point_collision,
+        "box_collision": collision,
         "collision": collision,
     }
 
@@ -352,4 +372,10 @@ def summarize_open_loop_metrics(
     if "min_clearance" in metrics:
         summary["min_clearance"] = _mean_metric(metrics["min_clearance"])
         summary["collision_rate"] = float(metrics["collision"].to(torch.float32).mean().item())
+        summary["box_collision_rate"] = float(
+            metrics["box_collision"].to(torch.float32).mean().item()
+        )
+        summary["point_collision_rate"] = float(
+            metrics["point_collision"].to(torch.float32).mean().item()
+        )
     return summary

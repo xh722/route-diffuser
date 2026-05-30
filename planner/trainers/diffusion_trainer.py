@@ -88,6 +88,10 @@ def _normalize_metric_names(metrics: dict[str, float]) -> dict[str, float]:
         normalized["comfort_violation_rate"] = normalized.pop("comfort_violation")
     if "collision" in normalized:
         normalized["collision_rate"] = normalized.pop("collision")
+    if "box_collision" in normalized:
+        normalized["box_collision_rate"] = normalized.pop("box_collision")
+    if "point_collision" in normalized:
+        normalized["point_collision_rate"] = normalized.pop("point_collision")
     return normalized
 
 
@@ -149,9 +153,23 @@ def evaluate_model_detailed(
             future_mask=batch.future_ego_mask,
         )
         open_loop["selected_index"] = scored["selected_indices"].to(torch.float32)
-        open_loop["selected_score"] = scored["scores"].gather(
-            dim=1, index=scored["selected_indices"].unsqueeze(1)
-        ).squeeze(1)
+        open_loop["selected_score"] = scored["selected_scores"]
+        open_loop["selected_heuristic_score"] = scored["selected_heuristic_scores"]
+        open_loop["best_heuristic_score"] = scored["best_heuristic_scores"]
+        open_loop["heuristic_regret"] = scored["heuristic_regret"]
+        open_loop["matches_heuristic_best"] = (
+            scored["selected_indices"] == scored["heuristic_selected_indices"]
+        ).to(torch.float32)
+        if scored["learned_selected_indices"] is not None:
+            open_loop["matches_learned_best"] = (
+                scored["selected_indices"] == scored["learned_selected_indices"]
+            ).to(torch.float32)
+        if scored["selected_normalized_learned_scores"] is not None:
+            open_loop["selected_normalized_learned_score"] = scored[
+                "selected_normalized_learned_scores"
+            ]
+        if scored["learned_preference_regret"] is not None:
+            open_loop["learned_preference_regret"] = scored["learned_preference_regret"]
 
         _append_metric_store(overall_store, open_loop)
         _append_metric_store(candidate_store, candidate_metrics)

@@ -52,6 +52,8 @@ class DiffusionPlannerConfig:
     scorer_candidate_strategy: str = "gt_prior_noise"
     scorer_drift_longitudinal_scale: float = 2.0
     scorer_drift_lateral_scale: float = 1.0
+    scorer_anchor_lateral_offset: float = 3.5
+    scorer_anchor_speed_scale: float = 0.12
     scorer_target_temperature: float = 0.5
     scorer_target_mode: str = "ade"
     scene_fusion_mode: str = "concat_mlp"
@@ -222,10 +224,16 @@ class DiffusionPlanner(nn.Module):
                 candidates[:, 2 : 2 + drift_count] = drift_candidates
                 if noise_count > 0:
                     candidates[:, 2 + drift_count :] = noise_candidates
+            elif strategy == "route_anchor":
+                candidates[:, 2:] = self._route_anchor_candidates(
+                    scene_batch=scene_batch,
+                    trajectory_prior=trajectory_prior,
+                    num_candidates=num_candidates - 2,
+                )
             else:
                 raise ValueError(
                     f"Unsupported scorer_candidate_strategy {strategy!r}; "
-                    "expected gt_prior_noise, gt_prior_drift, or mixed"
+                    "expected gt_prior_noise, gt_prior_drift, mixed, or route_anchor"
                 )
 
         candidates[:, :, 0] = scene_batch.ego_current_state.unsqueeze(1)
@@ -314,6 +322,73 @@ class DiffusionPlanner(nn.Module):
             heading = torch.atan2(candidates[..., 3], candidates[..., 2]) + heading_offsets
             candidates[..., 2] = torch.cos(heading)
             candidates[..., 3] = torch.sin(heading)
+        candidates[:, :, 0] = scene_batch.ego_current_state.unsqueeze(1)
+        return candidates
+
+    def _route_anchor_candidates(
+        self,
+        *,
+        scene_batch: CanonicalSceneBatch,
+        trajectory_prior: torch.Tensor,
+        num_candidates: int,
+    ) -> torch.Tensor:
+        if num_candidates <= 0:
+            return trajectory_prior.new_zeros(
+                trajectory_prior.shape[0], 0, trajectory_prior.shape[1], trajectory_prior.shape[2]
+            )
+
+        batch_size, horizon, trajectory_dim = trajectory_prior.shape
+        device = trajectory_prior.device
+        dtype = trajectory_prior.dtype
+        time_weights = torch.linspace(0.0, 1.0, horizon, device=device, dtype=dtype)
+        anchor_specs = [
+            (0.0, 0.0),
+            (self.config.scorer_anchor_lateral_offset, 0.0),
+            (-self.config.scorer_anchor_lateral_offset, 0.0),
+            (0.0, self.config.scorer_anchor_speed_scale),
+            (0.0, -self.config.scorer_anchor_speed_scale),
+        ]
+        candidates = trajectory_prior.unsqueeze(1).repeat(1, num_candidates, 1, 1)
+
+        for candidate_index in range(num_candidates):
+            lateral_offset, speed_scale = anchor_specs[candidate_index % len(anchor_specs)]
+            position = trajectory_prior[..., :2]
+            if trajectory_dim >= 4:
+                tangent = trajectory_prior[..., 2:4]
+            else:
+                tangent = trajectory_prior.new_zeros(batch_size, horizon, 2)
+                tangent[..., 0] = 1.0
+            tangent = tangent / torch.linalg.norm(tangent, dim=-1, keepdim=True).clamp(min=1e-6)
+            normal = torch.stack([-tangent[..., 1], tangent[..., 0]], dim=-1)
+            offset = normal * (
+                trajectory_prior.new_tensor(lateral_offset) * time_weights.view(1, horizon, 1)
+            )
+            scaled_position = position + offset
+            if speed_scale != 0.0:
+                delta = position - position[:, :1]
+                scaled_position = position[:, :1] + delta * (1.0 + speed_scale)
+                scaled_position = scaled_position + offset
+
+            candidates[:, candidate_index, :, :2] = scaled_position
+            if trajectory_dim >= 4:
+                deltas = torch.diff(
+                    scaled_position,
+                    dim=1,
+                    prepend=scaled_position[:, :1],
+                )
+                heading = torch.atan2(deltas[..., 1], deltas[..., 0])
+                heading[:, 0] = torch.atan2(tangent[:, 0, 1], tangent[:, 0, 0])
+                candidates[:, candidate_index, :, 2] = torch.cos(heading)
+                candidates[:, candidate_index, :, 3] = torch.sin(heading)
+            if trajectory_dim >= 6:
+                velocity = torch.diff(
+                    scaled_position,
+                    dim=1,
+                    prepend=scaled_position[:, :1],
+                ) / (1.0 / 3.0)
+                velocity[:, 0] = trajectory_prior[:, 0, 4:6]
+                candidates[:, candidate_index, :, 4:6] = velocity
+
         candidates[:, :, 0] = scene_batch.ego_current_state.unsqueeze(1)
         return candidates
 

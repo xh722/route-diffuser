@@ -36,6 +36,10 @@ def _gather_candidates(
     return predicted_samples[batch_index, indices]
 
 
+def _gather_candidate_values(values: torch.Tensor, indices: torch.Tensor) -> torch.Tensor:
+    return values.gather(dim=1, index=indices.unsqueeze(1)).squeeze(1)
+
+
 def _normalize_candidate_preferences(values: torch.Tensor) -> torch.Tensor:
     centered = values - values.mean(dim=1, keepdim=True)
     scale = values.std(dim=1, keepdim=True, unbiased=False).clamp(min=1e-6)
@@ -55,6 +59,8 @@ def score_trajectory_candidates(
     scene_batch.validate()
     if predicted_samples.ndim != 4:
         raise ValueError("predicted_samples must have shape [B, S, T, D]")
+    if learned_weight < 0.0:
+        raise ValueError("learned_weight must be non-negative")
 
     batch_size, num_samples, horizon, state_dim = predicted_samples.shape
     flattened_predictions = predicted_samples.reshape(batch_size * num_samples, horizon, state_dim)
@@ -103,19 +109,47 @@ def score_trajectory_candidates(
     )
     combined_scores = heuristic_scores
     normalized_learned = None
+    learned_selected_indices = None
+    selected_normalized_learned_scores = None
+    learned_preference_regret = None
     if learned_scores is not None:
         if learned_scores.shape != heuristic_scores.shape:
             raise ValueError("learned_scores shape must match candidate score shape")
         normalized_learned = _normalize_candidate_preferences(learned_scores)
         combined_scores = heuristic_scores - learned_weight * normalized_learned
+        learned_selected_indices = normalized_learned.argmax(dim=1)
 
     selected_indices = combined_scores.argmin(dim=1)
+    heuristic_selected_indices = heuristic_scores.argmin(dim=1)
+    selected_scores = _gather_candidate_values(combined_scores, selected_indices)
+    selected_heuristic_scores = _gather_candidate_values(heuristic_scores, selected_indices)
+    best_heuristic_scores = _gather_candidate_values(
+        heuristic_scores, heuristic_selected_indices
+    )
+    heuristic_regret = selected_heuristic_scores - best_heuristic_scores
+
+    if normalized_learned is not None and learned_selected_indices is not None:
+        selected_normalized_learned_scores = _gather_candidate_values(
+            normalized_learned, selected_indices
+        )
+        best_normalized_learned_scores = _gather_candidate_values(
+            normalized_learned, learned_selected_indices
+        )
+        learned_preference_regret = (
+            best_normalized_learned_scores - selected_normalized_learned_scores
+        )
 
     return {
         "scores": combined_scores,
         "heuristic_scores": heuristic_scores,
         "selected_indices": selected_indices,
+        "heuristic_selected_indices": heuristic_selected_indices,
+        "learned_selected_indices": learned_selected_indices,
         "selected_trajectories": _gather_candidates(predicted_samples, selected_indices),
+        "selected_scores": selected_scores,
+        "selected_heuristic_scores": selected_heuristic_scores,
+        "best_heuristic_scores": best_heuristic_scores,
+        "heuristic_regret": heuristic_regret,
         "route_error": route_error,
         "progress": progress,
         "min_clearance": min_clearance,
@@ -123,6 +157,8 @@ def score_trajectory_candidates(
         "comfort_penalty": comfort_penalty,
         "learned_scores": learned_scores,
         "normalized_learned_scores": normalized_learned,
+        "selected_normalized_learned_scores": selected_normalized_learned_scores,
+        "learned_preference_regret": learned_preference_regret,
     }
 
 

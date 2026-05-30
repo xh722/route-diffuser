@@ -8,7 +8,26 @@ from planner.datasets import (
     collate_scene_batches,
 )
 from planner.inference import score_trajectory_candidates
-from planner.metrics import candidate_set_metrics, summarize_open_loop_metrics
+from planner.metrics import (
+    box_collision_matrix,
+    candidate_set_metrics,
+    summarize_open_loop_metrics,
+)
+
+
+def test_oriented_box_collision_matrix_detects_overlap() -> None:
+    ego = torch.zeros(1, 2, 6)
+    ego[..., 2] = 1.0
+    objects = torch.zeros(1, 2, 2, 6)
+    objects[..., 2] = 1.0
+    objects[:, 0, :, 0] = 1.0
+    objects[:, 1, :, 0] = 20.0
+
+    collision = box_collision_matrix(ego, objects)
+
+    assert collision.shape == (1, 2, 2)
+    assert collision[0, 0].all()
+    assert not collision[0, 1].any()
 
 
 def test_open_loop_metrics_include_behavior_and_clearance() -> None:
@@ -32,6 +51,8 @@ def test_open_loop_metrics_include_behavior_and_clearance() -> None:
     assert metrics["progress"] > 0.0
     assert metrics["min_clearance"] > 0.0
     assert 0.0 <= metrics["collision_rate"] <= 1.0
+    assert 0.0 <= metrics["box_collision_rate"] <= 1.0
+    assert 0.0 <= metrics["point_collision_rate"] <= 1.0
     assert 0.0 <= metrics["comfort_violation_rate"] <= 1.0
 
 

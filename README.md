@@ -90,6 +90,7 @@ Artifact reference: [`docs/artifacts.md`](docs/artifacts.md)
 Architecture reference: [`docs/architecture.md`](docs/architecture.md)
 Release checklist: [`docs/release_checklist.md`](docs/release_checklist.md)
 Ablation guide: [`docs/ablations.md`](docs/ablations.md)
+Portfolio case study: [`docs/portfolio_case_study.md`](docs/portfolio_case_study.md)
 
 That command produces a compact project showcase in `outputs/portfolio_demo/`:
 

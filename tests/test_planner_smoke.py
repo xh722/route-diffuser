@@ -100,6 +100,26 @@ def test_candidate_strategy_drift_builds_distinct_candidates() -> None:
     assert not torch.allclose(candidates[:, 2], batch.future_ego_trajectory)
 
 
+def test_candidate_strategy_route_anchor_builds_structured_candidates() -> None:
+    batch = build_batch()
+    model = DiffusionPlanner(
+        DiffusionPlannerConfig(
+            scorer_num_candidates=6,
+            scorer_candidate_strategy="route_anchor",
+        )
+    )
+    prior = model.build_trajectory_prior(batch)
+    candidates = model._build_scorer_candidate_set(
+        scene_batch=batch,
+        target_trajectory=batch.future_ego_trajectory,
+        trajectory_prior=prior,
+    )
+
+    assert candidates.shape == (batch.batch_size, 6, 16, 6)
+    assert torch.allclose(candidates[:, :, 0], batch.ego_current_state.unsqueeze(1))
+    assert not torch.allclose(candidates[:, 2, -1, :2], candidates[:, 3, -1, :2])
+
+
 def test_reward_target_mode_returns_finite_scorer_loss() -> None:
     batch = build_batch()
     model = DiffusionPlanner(
@@ -161,6 +181,9 @@ def test_detailed_evaluation_reports_scenarios() -> None:
     assert report.dataset.dataset_type == "synthetic"
     assert "ade" in report.overall_metrics
     assert "oracle_ade" in report.candidate_set_metrics
+    assert "heuristic_regret" in report.overall_metrics
+    assert "matches_heuristic_best" in report.overall_metrics
+    assert "box_collision_rate" in report.overall_metrics
     assert set(report.scenario_metrics) == {
         "keep_lane",
         "lane_change_left",

@@ -18,6 +18,7 @@ DEFAULT_SCORER_CONFIGS = [
     "configs/model/learned_scorer_strong.yaml",
     "configs/model/learned_scorer_drift.yaml",
     "configs/model/learned_scorer_mixed.yaml",
+    "configs/model/learned_scorer_route_anchor.yaml",
     "configs/model/learned_scorer_reward.yaml",
 ]
 DEFAULT_ENCODER_CONFIGS = [
@@ -152,7 +153,7 @@ def build_ablation_markdown(payload: dict[str, Any]) -> str:
         "",
         f"- Baseline: `{payload['baseline_config_name']}`",
         "",
-        "| Config | Hidden | Weight | Candidate Strategy | Target Mode | Fusion | Selection | ADE | FDE | Route Error | Collision Rate |",
+        "| Config | Hidden | Weight | Candidate Strategy | Target Mode | Fusion | Selection | ADE | FDE | Route Error | Box Collision |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for run in payload["runs"]:
@@ -170,7 +171,7 @@ def build_ablation_markdown(payload: dict[str, Any]) -> str:
             f"{metrics.get('ade', float('nan')):.3f} | "
             f"{metrics.get('fde', float('nan')):.3f} | "
             f"{metrics.get('route_error', float('nan')):.3f} | "
-            f"{metrics.get('collision_rate', float('nan')):.3f} |"
+            f"{metrics.get('box_collision_rate', metrics.get('collision_rate', float('nan'))):.3f} |"
         )
     return "\n".join(lines) + "\n"
 
