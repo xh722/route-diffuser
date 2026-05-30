@@ -1,59 +1,44 @@
 # RouteDiffuser
 
-> 一个基于路线条件约束的自动驾驶轨迹规划扩散模型项目。
+> 基于路线条件约束的自动驾驶轨迹规划扩散模型项目。
 
-[English README](README.md)
-
-`RouteDiffuser` 是 `nn_planner` 这套代码库对外展示时使用的项目名称。这个仓库的目标不是复刻私有自动驾驶系统，而是把“规划核心”整理成一个适合公开展示、GitHub 浏览和简历描述的完整项目：场景表示、条件轨迹生成、评估体系和可视化产物。
+`RouteDiffuser` 是一个面向公开展示和简历项目的自动驾驶规划核心仓库。它不依赖私有日志、内部仿真服务或公司部署链路，而是把规划系统里最能体现工程能力的部分整理成可运行、可复现、可解释的代码：场景建模、路线条件扩散生成、多候选轨迹选择、评估报告、可视化和轻量闭环 rollout。
 
 ![RouteDiffuser demo plot](outputs/portfolio_demo/prediction_plot.png)
 ![RouteDiffuser scenario gallery](outputs/portfolio_demo/scenario_gallery.png)
 
-## 当前版本亮点
+## 项目亮点
 
 ### 数据与接口
 
-- 已经形成统一的场景张量契约，覆盖 ego、邻车、车道线、route polyline 和 mask。
-- 已经接入 manifest 驱动的数据准备方式，实验不再依赖脚本里临时切样本。
-- 已经提供公开 NPZ bridge format 和数据统计缓存，便于后续复用和接真实公开数据。
+- 统一的 canonical scene schema，覆盖 ego、邻车、车道线、route polyline、mask 和未来轨迹。
+- manifest 驱动的数据准备流程，训练、评估和 demo 不再依赖脚本里的临时切样本。
+- 支持 synthetic 数据和公开 NPZ bridge format，便于后续接入真实公开数据。
+- 提供数据统计缓存，方便做归一化、数据检查和实验复现。
 
 ### 规划模型
 
-- 已经实现 route-conditioned diffusion planner，核心去噪器是条件 1D U-Net。
-- 已经加入 learned trajectory scorer head，不再只有 heuristic 选择逻辑。
-- 已经加入结构化候选集策略：噪声扰动、漂移候选、混合候选。
-- 已经加入 attention-based scene fusion 作为显式结构对比线。
+- 实现 route-conditioned diffusion planner，核心解码器是条件 1D U-Net。
+- 使用 route prior residual diffusion，让模型预测围绕路线先验的残差轨迹。
+- 支持多分辨率 pyramid diffusion noise。
+- 支持 learned trajectory scorer head 和 heuristic/learned hybrid selection。
+- 支持多种 scorer candidate strategy：`gt_prior_noise`、`gt_prior_drift`、`mixed`、`route_anchor`。
+- 支持 `concat_mlp` 和 `token_attention` 两类 scene fusion ablation。
 
-### 评估与分析
+### 安全与评估
 
-- 已经形成结构化评估报告，包含 overall、candidate-set、scenario-level 指标。
-- 已经补齐 scorer compare、ablation matrix、failure analysis 等分析工具。
-- 已经加入 experiment registry / leaderboard，把不同实验结果统一索引起来。
+- 评估报告包含 overall、candidate-set、scenario-level 指标。
+- 支持 ADE/FDE、route error、progress、comfort proxy、clearance、collision rate 等指标。
+- 新增 oriented-box collision，用车辆矩形 footprint 检查碰撞，而不是只看点距离阈值。
+- scorer 诊断指标包含 heuristic regret、learned preference regret、selected-candidate agreement。
+- 支持 failure analysis、ablation matrix 和 experiment registry。
 
 ### 部署与运行
 
-- 已经具备 ONNX 导出、parity 检查、轻量 benchmark。
-- 已经具备最小 closed-loop rollout 路径，以及 trace / summary / plot 产物。
-
-## 这个仓库解决什么问题
-
-大多数自动驾驶项目都不能公开真实数据、仿真平台和内部部署链路，所以公开仓库往往只能停留在“模型片段”。这个仓库聚焦那些真正可以公开、也真正能体现工程能力的部分：
-
-- 统一的规划场景 schema：ego、邻车、车道线、route polyline 和 mask
-- 基于 route prior 的残差扩散规划策略
-- 受更大规划项目启发的多分辨率扩散噪声
-- 候选轨迹评分与选择，而不是默认拿第一个 sample
-- 可复现的 open-loop 评估、候选轨迹图、多场景画廊和报告产物
-
-## 当前能力
-
-- 已实现条件扩散规划模型，围绕路线先验做未来轨迹去噪。
-- 已实现 DDPM 风格训练、迭代采样和首帧锚定。
-- 已实现多候选轨迹打分，综合 route、clearance 和 comfort proxy 做选择。
-- 已接入 learned scorer 和 reward-aware scorer supervision，不再只停留在启发式打分。
-- 已接入 candidate-set strategy 和 scene-fusion ablation，使项目具备真正可研究的实验轴。
-- 已实现结构化 synthetic 场景，覆盖直行、左变道、右变道和缓弯。
-- 已补齐公开 CLI、数据 manifest、正式评估 report schema 和作品集 demo 脚本。
+- 支持 ONNX denoiser core 导出。
+- 支持 ONNX / PyTorch parity check。
+- 支持 CPU/GPU inference benchmark。
+- 支持轻量 closed-loop rollout，并输出 trace、summary 和 plot。
 
 ## 快速开始
 
@@ -63,7 +48,7 @@ python scripts/prepare_dataset.py --output outputs/manifests/route_diffuser_synt
 python scripts/demo_planner.py
 ```
 
-安装后也可以直接使用命令别名：
+安装后也可以使用命令别名：
 
 - `route-diffuser-prepare`
 - `route-diffuser-stats`
@@ -81,16 +66,19 @@ python scripts/demo_planner.py
 - `route-diffuser-eval`
 - `route-diffuser-demo`
 
-命令手册见：
+## 常用文档
 
-- [docs/commands.md](docs/commands.md)
-- [docs/artifacts.md](docs/artifacts.md)
-- [docs/architecture.md](docs/architecture.md)
-- [docs/release_checklist.md](docs/release_checklist.md)
-- [docs/ablations.md](docs/ablations.md)
-- [docs/portfolio_case_study.md](docs/portfolio_case_study.md)
+- 命令手册：[docs/commands.md](docs/commands.md)
+- 产物说明：[docs/artifacts.md](docs/artifacts.md)
+- 架构说明：[docs/architecture.md](docs/architecture.md)
+- 消融实验：[docs/ablations.md](docs/ablations.md)
+- 发布检查清单：[docs/release_checklist.md](docs/release_checklist.md)
+- 简历项目案例说明：[docs/portfolio_case_study.md](docs/portfolio_case_study.md)
+- 项目路线图：[ROADMAP.md](ROADMAP.md)
 
-上面的 demo 命令会在 `outputs/portfolio_demo/` 下生成一套完整展示产物：
+## Demo 产物
+
+`python scripts/demo_planner.py` 会在 `outputs/portfolio_demo/` 下生成一套适合放在 GitHub 首页或简历项目页里的展示产物：
 
 - `prediction_plot.png`
 - `candidate_trajectories.png`
@@ -102,125 +90,50 @@ python scripts/demo_planner.py
 - `demo_checkpoint.pt`
 - `predictions.pt`
 
-## 按模块看这版改了什么
-
-### 数据层
-
-- `planner/datasets/` 和 `planner/datasets/adapters/` 已经支持 synthetic、NPZ、manifest 和 stats cache。
-
-### 模型层
-
-- `planner/models/` 现在不仅有 diffusion planner，还包含 learned scorer、candidate strategy 和多种 scene fusion 路线。
-
-### 评估层
-
-- `planner/reports/` 已经不只是普通评估报告，还包含 failure analysis 和 registry/leaderboard。
-
-### 运行层
-
-- `planner/export/` 已经覆盖 ONNX、parity、benchmark。
-- `planner/rollout/` 已经覆盖最小 closed-loop replanning。
-
-## 命令入口
-
-公开入口：
-
-- `python scripts/prepare_dataset.py`
-- `python scripts/compute_dataset_stats.py`
-- `python scripts/compare_scorer.py`
-- `python scripts/run_ablation_matrix.py`
-- `python scripts/analyze_failures.py`
-- `python scripts/build_registry.py`
-- `python scripts/train_planner.py`
-- `python scripts/infer_planner.py`
-- `python scripts/eval_planner.py`
-- `python scripts/demo_planner.py`
-
-兼容旧入口：
-
-- `python scripts/train_diffusion.py`
-- `python scripts/infer_scene.py`
-- `python scripts/eval_diffusion.py`
-- `python scripts/demo_portfolio.py`
-
-## Demo 产物
-
-作品集 demo 会训练一个小模型、采样未来轨迹、输出 open-loop 指标，并生成适合放在 GitHub 首页或简历项目页里的总结材料。
-
-- 项目路线图：[ROADMAP.md](ROADMAP.md)
-- 数据准备脚本：[scripts/prepare_dataset.py](scripts/prepare_dataset.py)
-- 主 demo 脚本：[scripts/demo_planner.py](scripts/demo_planner.py)
-- 作品集总结：[outputs/portfolio_demo/portfolio_summary.md](outputs/portfolio_demo/portfolio_summary.md)
-- 结构化评估报告：[outputs/portfolio_demo/evaluation_report.md](outputs/portfolio_demo/evaluation_report.md)
-- 候选轨迹图：[outputs/portfolio_demo/candidate_trajectories.png](outputs/portfolio_demo/candidate_trajectories.png)
-- 多场景画廊：[outputs/portfolio_demo/scenario_gallery.png](outputs/portfolio_demo/scenario_gallery.png)
-
 ## 架构概览
 
 ```text
-结构化场景生成器 / 后续真实数据适配器
-  -> 统一场景张量
+structured scenario generator / public dataset adapter
+  -> canonical scene tensors
   -> scene encoder
-  -> route prior 构建
-  -> 条件扩散解码器（1D U-Net）
-  -> 迭代轨迹去噪
-  -> 候选轨迹评分与选择
-  -> open-loop 指标与调试可视化
+  -> route prior
+  -> conditional 1D U-Net diffusion decoder
+  -> iterative denoising sampler
+  -> candidate trajectory bundle
+  -> heuristic / learned hybrid scoring
+  -> reports, plots, rollout, registry
 ```
 
-## 仓库结构
+## 目录结构
 
-- `planner/datasets/`：场景 schema、synthetic 数据和数据工厂
-- `planner/datasets/adapters/`：可插拔数据适配层，当前包含 synthetic 和公开 NPZ 格式
-- `planner/models/`：scene encoder 和 diffusion decoder
-- `planner/diffusion/`：噪声调度与反向扩散工具
-- `planner/inference/`：锚定和候选打分逻辑
-- `planner/trainers/`：训练与评估入口
-- `planner/reports/`：结构化评估报告 schema
-- `planner/visualization/`：轨迹绘图工具
-- `scripts/`：数据准备、训练、推理、评估和 demo 入口
-- `configs/model/`：基础模型配置，以及 scorer / encoder 对比配置
-- `docs/commands.md`：命令手册
-- `docs/artifacts.md`：产物说明文档
-- `docs/architecture.md`：模块架构说明
-- `docs/release_checklist.md`：发布检查清单
-- `docs/ablations.md`：实验矩阵和 scorer 对比说明
-- `ROADMAP.md`：项目完善路线图
+- `planner/datasets/`：场景 schema、synthetic 数据集、数据工厂和统计缓存。
+- `planner/datasets/adapters/`：可插拔数据适配器，包含 synthetic 和 NPZ bridge。
+- `planner/models/`：scene encoder、diffusion planner、diffusion decoder、trajectory scorer。
+- `planner/diffusion/`：噪声采样、schedule 和 DDPM 工具。
+- `planner/inference/`：首帧锚定、候选轨迹打分和选择。
+- `planner/metrics/`：轨迹指标、comfort 指标、oriented-box collision。
+- `planner/trainers/`：训练和评估循环。
+- `planner/reports/`：结构化评估报告、失败分析和实验 registry。
+- `planner/export/`：ONNX 导出、parity 和 benchmark。
+- `planner/rollout/`：轻量闭环 rollout。
+- `planner/visualization/`：轨迹图、候选轨迹图、场景画廊。
+- `scripts/`：公开 CLI 包装脚本。
+- `configs/`：数据、模型、训练和推理配置。
+- `docs/`：命令、架构、产物、消融、发布和简历案例说明。
 
-现在仓库也已经有一层轻量级 registry / leaderboard，可以把评估结果和 failure analysis
-统一放到一个结果视图里，而不是只看分散的 JSON 文件。
+## 适合简历怎么写
 
-## 为什么它已经不只是简历项目
+- 使用 PyTorch 实现一个 route-conditioned autonomous driving trajectory planner，核心为条件扩散模型和 1D U-Net 去噪解码器。
+- 设计 canonical planner scene schema，统一 ego、neighbors、lanes、route polylines、masks 和 future trajectory target。
+- 实现 route-prior residual diffusion、multi-sample candidate generation、hybrid heuristic/learned scoring 和 route-anchor candidate supervision。
+- 构建规划评估体系，覆盖 ADE/FDE、route consistency、comfort proxy、oriented-box collision、candidate oracle metrics、scenario breakdown 和 failure analysis。
+- 完成数据 manifest、NPZ bridge、ONNX export/parity、benchmark、closed-loop rollout、ablation matrix 和 portfolio artifacts。
 
-- 这个仓库已经有多条真正可研究的实验轴：scorer 权重、target mode、候选集构造策略、encoder 宽度、attention fusion。
-- 它已经不只看平均指标，还能看 failure case、worst-case 风险和多实验横向对比。
-- 数据桥接、部署导出、闭环 rollout、结果索引都已经成型，更接近一个小型规划研究平台，而不是静态展示仓库。
+## 项目边界
 
-## 适合怎么描述到简历里
+这个仓库有意保持 planner-first：
 
-- 自动驾驶规划项目，重点展示 route-conditioned future trajectory generation。
-- 使用 PyTorch 实现条件扩散模型和 1D U-Net 轨迹解码器。
-- 包含统一场景接口、synthetic 场景生成、候选轨迹排序、分场景评估和可视化产物。
+- 已包含：场景建模、扩散规划、synthetic 数据、NPZ bridge、候选评分、评估报告、闭环 rollout、可视化和作品集产物。
+- 暂不包含：私有数据适配器、私有仿真服务、内部部署插件、生产级 RL fine-tuning 链路。
 
-## 当前边界
-
-这个仓库有意保持 `planner-first`，而不是做成一个私有自动驾驶系统的空壳复刻。
-
-已经包含：
-
-- 场景建模
-- 扩散规划
-- synthetic 数据
-- manifest / adapter 骨架
-- 候选评分
-- 评估报告
-- 可视化和作品集产物
-
-暂不包含：
-
-- 私有数据适配器
-- 私有仿真服务
-- TensorRT/内部部署插件
-- RL fine-tuning 链路
-
-这种边界是有意设计的。它能让项目在公开环境里保持完整、可运行、可解释，而不是依赖无法共享的基础设施。
+这种边界能让项目在公开环境里保持完整、可运行、可解释，而不是依赖无法共享的基础设施。

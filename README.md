@@ -1,65 +1,46 @@
 # RouteDiffuser
 
-> Autonomous driving trajectory planning with a route-conditioned diffusion policy.
+> 基于路线条件约束的自动驾驶轨迹规划扩散模型项目。
 
-[简体中文 README](README.zh-CN.md)
-
-`RouteDiffuser` is the public-facing project name for the `nn_planner` codebase. The goal is to
-show the planner core of an autonomous driving system in a form that reads well on GitHub and in a
-resume: scene representation, conditional trajectory generation, evaluation, and visual artifacts.
+`RouteDiffuser` 是一个面向公开展示和简历项目的自动驾驶规划核心仓库。它不依赖私有日志、内部仿真服务或公司部署链路，而是把规划系统里最能体现工程能力的部分整理成可运行、可复现、可解释的代码：场景建模、路线条件扩散生成、多候选轨迹选择、评估报告、可视化和轻量闭环 rollout。
 
 ![RouteDiffuser demo plot](outputs/portfolio_demo/prediction_plot.png)
 ![RouteDiffuser scenario gallery](outputs/portfolio_demo/scenario_gallery.png)
 
-## Current Release Highlights
+## 项目亮点
 
-### Data And Interfaces
+### 数据与接口
 
-- Added a canonical scene contract for ego, neighbors, lane polylines, route polylines, and masks.
-- Added manifest-driven dataset preparation so experiments no longer depend on ad hoc sample slicing.
-- Added a public NPZ bridge format plus dataset statistics caching for reusable preprocessing artifacts.
+- 统一的 canonical scene schema，覆盖 ego、邻车、车道线、route polyline、mask 和未来轨迹。
+- manifest 驱动的数据准备流程，训练、评估和 demo 不再依赖脚本里的临时切样本。
+- 支持 synthetic 数据和公开 NPZ bridge format，便于后续接入真实公开数据。
+- 提供数据统计缓存，方便做归一化、数据检查和实验复现。
 
-### Planning Model
+### 规划模型
 
-- Built a route-conditioned diffusion planner around a conditional 1D U-Net denoiser.
-- Added a learned trajectory scorer head on top of the planner context encoder.
-- Added structured scorer candidate-set strategies: noise perturbation, drift-based candidates, and mixed generation.
-- Added an attention-based scene fusion ablation in addition to the original concat-MLP encoder path.
+- 实现 route-conditioned diffusion planner，核心解码器是条件 1D U-Net。
+- 使用 route prior residual diffusion，让模型预测围绕路线先验的残差轨迹。
+- 支持多分辨率 pyramid diffusion noise。
+- 支持 learned trajectory scorer head 和 heuristic/learned hybrid selection。
+- 支持多种 scorer candidate strategy：`gt_prior_noise`、`gt_prior_drift`、`mixed`、`route_anchor`。
+- 支持 `concat_mlp` 和 `token_attention` 两类 scene fusion ablation。
 
-### Evaluation And Analysis
+### 安全与评估
 
-- Added structured evaluation reports with overall, candidate-set, and scenario-level metrics.
-- Added scorer comparison, ablation matrix, and failure-analysis tooling for targeted debugging.
-- Added an experiment registry and leaderboard layer so results can be compared in one place.
+- 评估报告包含 overall、candidate-set、scenario-level 指标。
+- 支持 ADE/FDE、route error、progress、comfort proxy、clearance、collision rate 等指标。
+- 新增 oriented-box collision，用车辆矩形 footprint 检查碰撞，而不是只看点距离阈值。
+- scorer 诊断指标包含 heuristic regret、learned preference regret、selected-candidate agreement。
+- 支持 failure analysis、ablation matrix 和 experiment registry。
 
-### Deployment And Runtime
+### 部署与运行
 
-- Added ONNX export for the denoiser core, parity checks, and lightweight benchmark reporting.
-- Added a lightweight closed-loop rollout path with trace, summary, and plot artifacts.
+- 支持 ONNX denoiser core 导出。
+- 支持 ONNX / PyTorch parity check。
+- 支持 CPU/GPU inference benchmark。
+- 支持轻量 closed-loop rollout，并输出 trace、summary 和 plot。
 
-## Why This Repo Exists
-
-Most autonomous driving projects cannot ship their real datasets, simulator stacks, or internal
-evaluation infrastructure. This repository focuses on the part that can be shown clearly:
-
-- canonical scene-schema design for ego, neighbors, lanes, route polylines, and masks
-- a route-prior residual diffusion policy with a conditional 1D U-Net decoder
-- optional multi-resolution pyramid noise inspired by a larger reference diffusion planner
-- heuristic candidate selection over route adherence, clearance, and comfort signals
-- structured synthetic driving scenes that still look like real planning tasks
-- scenario-wise open-loop metrics, checkpointing, candidate trajectory plots, and scenario galleries
-
-## What It Demonstrates
-
-- Built a route-conditioned planner that denoises trajectory residuals around a route prior.
-- Implemented DDPM-style training, iterative inference, and first-step anchoring to the current ego state.
-- Scored multiple sampled plans with route, clearance, and comfort heuristics instead of defaulting to the first sample.
-- Added learned and reward-aware scorer supervision paths instead of limiting selection to heuristic-only ranking.
-- Added candidate-set construction and scene-fusion ablations so model behavior can be studied rather than only showcased.
-- Modeled keep-lane, lane-change-left, lane-change-right, and curved-road scenarios in a reusable synthetic generator.
-- Packaged the project with training, inference, evaluation, and portfolio demo scripts.
-
-## Quick Start
+## 快速开始
 
 ```bash
 pip install -e .[dev]
@@ -67,7 +48,7 @@ python scripts/prepare_dataset.py --output outputs/manifests/route_diffuser_synt
 python scripts/demo_planner.py
 ```
 
-Installed command aliases are also available after `pip install -e .[dev]`:
+安装后也可以使用命令别名：
 
 - `route-diffuser-prepare`
 - `route-diffuser-stats`
@@ -85,14 +66,19 @@ Installed command aliases are also available after `pip install -e .[dev]`:
 - `route-diffuser-eval`
 - `route-diffuser-demo`
 
-Full command reference: [`docs/commands.md`](docs/commands.md)
-Artifact reference: [`docs/artifacts.md`](docs/artifacts.md)
-Architecture reference: [`docs/architecture.md`](docs/architecture.md)
-Release checklist: [`docs/release_checklist.md`](docs/release_checklist.md)
-Ablation guide: [`docs/ablations.md`](docs/ablations.md)
-Portfolio case study: [`docs/portfolio_case_study.md`](docs/portfolio_case_study.md)
+## 常用文档
 
-That command produces a compact project showcase in `outputs/portfolio_demo/`:
+- 命令手册：[docs/commands.md](docs/commands.md)
+- 产物说明：[docs/artifacts.md](docs/artifacts.md)
+- 架构说明：[docs/architecture.md](docs/architecture.md)
+- 消融实验：[docs/ablations.md](docs/ablations.md)
+- 发布检查清单：[docs/release_checklist.md](docs/release_checklist.md)
+- 简历项目案例说明：[docs/portfolio_case_study.md](docs/portfolio_case_study.md)
+- 项目路线图：[ROADMAP.md](ROADMAP.md)
+
+## Demo 产物
+
+`python scripts/demo_planner.py` 会在 `outputs/portfolio_demo/` 下生成一套适合放在 GitHub 首页或简历项目页里的展示产物：
 
 - `prediction_plot.png`
 - `candidate_trajectories.png`
@@ -104,120 +90,50 @@ That command produces a compact project showcase in `outputs/portfolio_demo/`:
 - `demo_checkpoint.pt`
 - `predictions.pt`
 
-## Changes By Area
-
-### Dataset Layer
-
-- `planner/datasets/` and `planner/datasets/adapters/` now support synthetic data, NPZ-backed public-format data, manifests, and cached statistics.
-
-### Model Layer
-
-- `planner/models/` now includes:
-  - the core diffusion planner
-  - a learned scorer head
-  - multiple scene-fusion variants
-  - scorer candidate-strategy variants
-
-### Evaluation Layer
-
-- `planner/reports/` and the evaluation scripts now emit machine-readable reports instead of one-off script outputs.
-- `planner/reports/registry.py` adds an experiment-registry layer for indexing evaluation, failure, and ablation artifacts.
-
-### Runtime Layer
-
-- `planner/export/` covers ONNX export, parity, and benchmarking.
-- `planner/rollout/` adds lightweight closed-loop replanning behavior.
-
-## Command Surface
-
-Public entry points:
-
-- `python scripts/prepare_dataset.py`
-- `python scripts/compute_dataset_stats.py`
-- `python scripts/compare_scorer.py`
-- `python scripts/run_ablation_matrix.py`
-- `python scripts/analyze_failures.py`
-- `python scripts/build_registry.py`
-- `python scripts/train_planner.py`
-- `python scripts/infer_planner.py`
-- `python scripts/eval_planner.py`
-- `python scripts/demo_planner.py`
-
-Compatibility wrappers:
-
-- `python scripts/train_diffusion.py`
-- `python scripts/infer_scene.py`
-- `python scripts/eval_diffusion.py`
-- `python scripts/demo_portfolio.py`
-
-## Demo Outputs
-
-The portfolio demo trains a small planner, samples future trajectories, evaluates open-loop metrics,
-and writes a summary with scenario breakdowns, oracle candidate metrics, and selection diagnostics
-that is easy to reuse in a GitHub project page or resume portfolio.
-
-- Delivery roadmap: [`ROADMAP.md`](ROADMAP.md)
-- Dataset preparation: [`scripts/prepare_dataset.py`](scripts/prepare_dataset.py)
-- Main demo script: [`scripts/demo_planner.py`](scripts/demo_planner.py)
-- Generated summary: [`outputs/portfolio_demo/portfolio_summary.md`](outputs/portfolio_demo/portfolio_summary.md)
-- Generated JSON: [`outputs/portfolio_demo/portfolio_summary.json`](outputs/portfolio_demo/portfolio_summary.json)
-- Evaluation report: [`outputs/portfolio_demo/evaluation_report.md`](outputs/portfolio_demo/evaluation_report.md)
-- Candidate trajectories: [`outputs/portfolio_demo/candidate_trajectories.png`](outputs/portfolio_demo/candidate_trajectories.png)
-- Scenario gallery: [`outputs/portfolio_demo/scenario_gallery.png`](outputs/portfolio_demo/scenario_gallery.png)
-- Legacy script names such as `demo_portfolio.py`, `train_diffusion.py`, `infer_scene.py`, and `eval_diffusion.py` remain as compatibility wrappers.
-
-## Architecture
+## 架构概览
 
 ```text
-structured scenario generator / future dataset adapter
+structured scenario generator / public dataset adapter
   -> canonical scene tensors
   -> scene encoder
-  -> route prior construction
-  -> conditional diffusion decoder (1D U-Net)
-  -> iterative trajectory denoising
-  -> candidate scoring and selection
-  -> open-loop metrics and debugging plots
+  -> route prior
+  -> conditional 1D U-Net diffusion decoder
+  -> iterative denoising sampler
+  -> candidate trajectory bundle
+  -> heuristic / learned hybrid scoring
+  -> reports, plots, rollout, registry
 ```
 
-## Repository Tour
+## 目录结构
 
-- `planner/datasets/`: canonical scene schema and structured synthetic scenarios
-- `planner/datasets/adapters/`: pluggable dataset adapters including synthetic and NPZ-backed public format loading
-- `planner/models/`: scene encoder and conditional diffusion decoder
-- `planner/diffusion/`: noise schedule and reverse diffusion utilities
-- `planner/inference/`: anchoring plus heuristic candidate scoring
-- `planner/trainers/`: training and evaluation loops
-- `planner/visualization/`: trajectory plotting utilities
-- `scripts/`: dataset preparation, train, infer, evaluate, and portfolio demo entry points
-- `configs/model/`: base model config plus scorer and encoder ablation configs
-- `docs/commands.md`: public command manual
-- `docs/artifacts.md`: output artifact reference
-- `docs/architecture.md`: module and boundary overview
-- `docs/release_checklist.md`: release-readiness checklist
-- `docs/ablations.md`: experiment matrix and scorer comparison guide
-- `ROADMAP.md`: execution plan for completing the public project
+- `planner/datasets/`：场景 schema、synthetic 数据集、数据工厂和统计缓存。
+- `planner/datasets/adapters/`：可插拔数据适配器，包含 synthetic 和 NPZ bridge。
+- `planner/models/`：scene encoder、diffusion planner、diffusion decoder、trajectory scorer。
+- `planner/diffusion/`：噪声采样、schedule 和 DDPM 工具。
+- `planner/inference/`：首帧锚定、候选轨迹打分和选择。
+- `planner/metrics/`：轨迹指标、comfort 指标、oriented-box collision。
+- `planner/trainers/`：训练和评估循环。
+- `planner/reports/`：结构化评估报告、失败分析和实验 registry。
+- `planner/export/`：ONNX 导出、parity 和 benchmark。
+- `planner/rollout/`：轻量闭环 rollout。
+- `planner/visualization/`：轨迹图、候选轨迹图、场景画廊。
+- `scripts/`：公开 CLI 包装脚本。
+- `configs/`：数据、模型、训练和推理配置。
+- `docs/`：命令、架构、产物、消融、发布和简历案例说明。
 
-The project now also supports a lightweight registry/leaderboard layer so evaluation and failure
-analysis outputs can be compared in one place instead of being read as isolated JSON files.
+## 适合简历怎么写
 
-## Why It Is More Than A Resume Project
+- 使用 PyTorch 实现一个 route-conditioned autonomous driving trajectory planner，核心为条件扩散模型和 1D U-Net 去噪解码器。
+- 设计 canonical planner scene schema，统一 ego、neighbors、lanes、route polylines、masks 和 future trajectory target。
+- 实现 route-prior residual diffusion、multi-sample candidate generation、hybrid heuristic/learned scoring 和 route-anchor candidate supervision。
+- 构建规划评估体系，覆盖 ADE/FDE、route consistency、comfort proxy、oriented-box collision、candidate oracle metrics、scenario breakdown 和 failure analysis。
+- 完成数据 manifest、NPZ bridge、ONNX export/parity、benchmark、closed-loop rollout、ablation matrix 和 portfolio artifacts。
 
-- The repo now exposes multiple genuine research axes: scorer weight, scorer target mode, candidate-set construction strategy, encoder width, and attention-based scene fusion.
-- The repo includes both average-metric evaluation and failure-focused analysis, which is closer to how real planning systems are judged.
-- The export, parity, benchmark, rollout, and registry layers make the project usable as a small planning research platform rather than a static demo.
+## 项目边界
 
-## Resume-Friendly Project Framing
+这个仓库有意保持 planner-first：
 
-- Autonomous driving planner focused on route-conditioned future trajectory generation.
-- Conditional diffusion model with a 1D U-Net decoder implemented in PyTorch.
-- Canonical scene interfaces, synthetic scenario generation, candidate ranking, scenario-level metrics, and visualization included.
+- 已包含：场景建模、扩散规划、synthetic 数据、NPZ bridge、候选评分、评估报告、闭环 rollout、可视化和作品集产物。
+- 暂不包含：私有数据适配器、私有仿真服务、内部部署插件、生产级 RL fine-tuning 链路。
 
-## Scope
-
-This repo is intentionally planner-first.
-
-- included: scene modeling, diffusion planning, synthetic scenario generation, candidate scoring, evaluation, visualization, portfolio artifacts
-- deferred: proprietary dataset adapters, simulator integration, reward modeling, RL fine-tuning
-
-That tradeoff makes the codebase strong as a public project: it shows system design and modeling
-ability without depending on private infrastructure.
+这种边界能让项目在公开环境里保持完整、可运行、可解释，而不是依赖无法共享的基础设施。

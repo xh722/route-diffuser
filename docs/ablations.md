@@ -1,13 +1,10 @@
-# RouteDiffuser Ablations
+# RouteDiffuser 消融实验说明
 
-This document defines a small, stable ablation matrix for `RouteDiffuser`.
+本文档说明 `RouteDiffuser` 当前支持的 scorer、candidate strategy 和 encoder 消融实验。
 
-The goal is not to exhaustively search hyperparameters. The goal is to make a few comparisons easy
-to rerun and easy to interpret.
+## Scorer 配置集合
 
-## Current Scorer Config Set
-
-Available scorer-related model configs:
+可用配置：
 
 - `configs/model/heuristic_only.yaml`
 - `configs/model/learned_scorer_light.yaml`
@@ -18,22 +15,20 @@ Available scorer-related model configs:
 - `configs/model/learned_scorer_route_anchor.yaml`
 - `configs/model/learned_scorer_reward.yaml`
 
-These correspond to:
+配置含义：
 
-| Config | `learned_scorer_weight` | Candidate Strategy | Target Mode | Intended Use |
+| 配置 | `learned_scorer_weight` | Candidate Strategy | Target Mode | 用途 |
 | --- | --- | --- | --- | --- |
-| `heuristic_only.yaml` | `0.0` | `gt_prior_noise` | `ade` | baseline |
-| `learned_scorer_light.yaml` | `0.05` | `gt_prior_noise` | `ade` | gentle hybrid influence |
-| `learned_scorer.yaml` | `0.10` | `gt_prior_noise` | `ade` | default learned-scorer experiment |
-| `learned_scorer_strong.yaml` | `0.25` | `gt_prior_noise` | `ade` | aggressive hybrid influence |
-| `learned_scorer_drift.yaml` | `0.10` | `gt_prior_drift` | `ade` | structured candidate drift experiment |
-| `learned_scorer_mixed.yaml` | `0.10` | `mixed` | `ade` | mixed noise + drift candidate set |
-| `learned_scorer_route_anchor.yaml` | `0.10` | `route_anchor` | `ade` | lane-intention style route anchors |
+| `heuristic_only.yaml` | `0.0` | `gt_prior_noise` | `ade` | 纯启发式 baseline |
+| `learned_scorer_light.yaml` | `0.05` | `gt_prior_noise` | `ade` | 轻量 learned scorer 影响 |
+| `learned_scorer.yaml` | `0.10` | `gt_prior_noise` | `ade` | 默认 learned scorer 实验 |
+| `learned_scorer_strong.yaml` | `0.25` | `gt_prior_noise` | `ade` | 更强 learned scorer 影响 |
+| `learned_scorer_drift.yaml` | `0.10` | `gt_prior_drift` | `ade` | 漂移候选实验 |
+| `learned_scorer_mixed.yaml` | `0.10` | `mixed` | `ade` | noise + drift 混合候选 |
+| `learned_scorer_route_anchor.yaml` | `0.10` | `route_anchor` | `ade` | lane-intention 风格 route anchor |
 | `learned_scorer_reward.yaml` | `0.10` | `gt_prior_noise` | `reward` | reward-aware scorer supervision |
 
-## Recommended Comparison Order
-
-Run comparisons in this order:
+## 推荐比较顺序
 
 1. `heuristic_only.yaml` vs `learned_scorer.yaml`
 2. `heuristic_only.yaml` vs `learned_scorer_light.yaml`
@@ -43,18 +38,17 @@ Run comparisons in this order:
 6. `learned_scorer.yaml` vs `learned_scorer_route_anchor.yaml`
 7. `learned_scorer.yaml` vs `learned_scorer_reward.yaml`
 
-That sequence tells you:
+这组对比可以回答：
 
-- whether the scorer helps at all
-- whether small scorer influence is safer
-- whether stronger scorer influence destabilizes selection
-- whether structured candidate generation is more informative than pure noise perturbation
-- whether lane-intention style anchors improve scorer supervision over generic drift/noise
-- whether reward-aware supervision behaves differently from pure ADE supervision
+- learned scorer 是否带来收益。
+- scorer 权重变大后是否会破坏启发式安全选择。
+- 结构化候选是否比纯 noise 更适合训练 scorer。
+- route-anchor 是否能提供更接近真实规划意图的候选。
+- reward-aware target 与 ADE target 的行为差异。
 
-## Suggested Commands
+## 常用命令
 
-Baseline comparison:
+默认 scorer 对比：
 
 ```bash
 python scripts/compare_scorer.py \
@@ -64,57 +58,7 @@ python scripts/compare_scorer.py \
   --device cpu
 ```
 
-Light scorer:
-
-```bash
-python scripts/compare_scorer.py \
-  --data-config configs/data/synthetic.yaml \
-  --model-config configs/model/learned_scorer_light.yaml \
-  --output outputs/eval/scorer_comparison_light.json \
-  --device cpu
-```
-
-Strong scorer:
-
-```bash
-python scripts/compare_scorer.py \
-  --data-config configs/data/synthetic.yaml \
-  --model-config configs/model/learned_scorer_strong.yaml \
-  --output outputs/eval/scorer_comparison_strong.json \
-  --device cpu
-```
-
-Structured drift scorer:
-
-```bash
-python scripts/compare_scorer.py \
-  --data-config configs/data/synthetic.yaml \
-  --model-config configs/model/learned_scorer_drift.yaml \
-  --output outputs/eval/scorer_comparison_drift.json \
-  --device cpu
-```
-
-Mixed candidate scorer:
-
-```bash
-python scripts/compare_scorer.py \
-  --data-config configs/data/synthetic.yaml \
-  --model-config configs/model/learned_scorer_mixed.yaml \
-  --output outputs/eval/scorer_comparison_mixed.json \
-  --device cpu
-```
-
-Reward-aware scorer:
-
-```bash
-python scripts/compare_scorer.py \
-  --data-config configs/data/synthetic.yaml \
-  --model-config configs/model/learned_scorer_reward.yaml \
-  --output outputs/eval/scorer_comparison_reward.json \
-  --device cpu
-```
-
-Route-anchor scorer:
+route-anchor scorer 对比：
 
 ```bash
 python scripts/compare_scorer.py \
@@ -124,7 +68,7 @@ python scripts/compare_scorer.py \
   --device cpu
 ```
 
-Matrix shortcut:
+scorer matrix：
 
 ```bash
 python scripts/run_ablation_matrix.py \
@@ -133,114 +77,86 @@ python scripts/run_ablation_matrix.py \
   --device cpu
 ```
 
-This matrix now covers three scorer axes together:
+自定义配置列表：
 
-- scorer weight
-- candidate-set construction strategy
-- scorer target mode
+```bash
+python scripts/run_ablation_matrix.py \
+  --matrix scorer \
+  --model-configs \
+    configs/model/heuristic_only.yaml \
+    configs/model/learned_scorer.yaml \
+    configs/model/learned_scorer_route_anchor.yaml \
+  --output-dir outputs/ablations/custom_scorer_matrix \
+  --device cpu
+```
 
-## What To Watch
+## Candidate Strategy
 
-Primary metrics:
+当前支持：
+
+- `gt_prior_noise`：ground truth / route prior 加噪声扰动。
+- `gt_prior_drift`：构造纵向和横向 drift 候选。
+- `mixed`：同时使用 drift 和 noise。
+- `route_anchor`：基于 route prior 构造居中、左偏、右偏、快速、慢速候选。
+
+`route_anchor` 的意义：
+
+- 更接近真实规划系统里的 intention / anchor 思路。
+- 能让 scorer 看到结构化候选，而不是只学习随机扰动。
+- 适合作为 lane-level decision 的公开简化版。
+
+## 重点观察指标
+
+主要指标：
 
 - `ade`
 - `fde`
 - `route_error`
-- `collision_rate`
+- `box_collision_rate`
+- `point_collision_rate`
+- `comfort_violation_rate`
 - `selected_score`
 - `heuristic_regret`
 - `matches_heuristic_best`
+- `matches_learned_best`
+- `learned_preference_regret`
 
-Interpretation guidance:
+解释：
 
-- lower `ade` and `fde` are better
-- lower `route_error` is better
-- lower `collision_rate` is better
-- `selected_score` is only meaningful relative to another run using the same scoring mode
-- lower `heuristic_regret` means the learned scorer is staying closer to the heuristic best candidate
-- higher `matches_heuristic_best` means selection more often agrees with the heuristic baseline
-- in hybrid mode, `matches_learned_best` and `learned_preference_regret` diagnose whether the combined score is following the learned preference head
+- `ade` / `fde` 越低越好。
+- `route_error` 越低说明路线一致性越好。
+- `box_collision_rate` 是主要安全指标，越低越好。
+- `point_collision_rate` 保留为对照指标。
+- `selected_score` 只适合在同一 scoring mode 下横向比较。
+- `heuristic_regret` 越低，说明选择越接近启发式最优候选。
+- `matches_heuristic_best` 越高，说明 scorer 与启发式 baseline 越一致。
+- `matches_learned_best` 和 `learned_preference_regret` 用于诊断 hybrid scorer 是否跟随 learned preference。
 
-## Keep These Fixed
+## Encoder 配置集合
 
-When comparing scorer configs, try to keep these constant:
-
-- dataset config
-- manifest
-- checkpoint
-- batch size
-- candidate sample count
-- evaluation seed
-
-If you change more than one of those at once, the scorer comparison becomes noisy.
-
-## Current Scope
-
-These ablations only vary the scorer weight. They do not yet vary:
-- scorer hidden dimension
-- scorer candidate count
-- scorer target temperature
-
-Candidate-set strategy is now a first-class axis through:
-
-- `gt_prior_noise`
-- `gt_prior_drift`
-- `mixed`
-- `route_anchor`
-
-Target-mode supervision is also now a first-class axis through:
-
-- `ade`
-- `reward`
-
-## Encoder Config Set
-
-Available encoder-scale configs:
+可用配置：
 
 - `configs/model/base.yaml`
 - `configs/model/encoder_small.yaml`
 - `configs/model/encoder_wide.yaml`
 - `configs/model/encoder_attention.yaml`
 
-These correspond to:
+配置含义：
 
-| Config | `hidden_dim` | `time_dim` | `decoder_down_dims` | Fusion | Intended Use |
+| 配置 | `hidden_dim` | `time_dim` | `decoder_down_dims` | Fusion | 用途 |
 | --- | --- | --- | --- | --- | --- |
-| `base.yaml` | `128` | `128` | `[128, 256]` | `concat_mlp` | default |
-| `encoder_small.yaml` | `96` | `96` | `[96, 192]` | `concat_mlp` | lighter model / lower cost |
-| `encoder_wide.yaml` | `192` | `192` | `[192, 384]` | `concat_mlp` | higher-capacity model |
-| `encoder_attention.yaml` | `128` | `128` | `[128, 256]` | `token_attention` | explicit modality-token fusion |
+| `base.yaml` | `128` | `128` | `[128, 256]` | `concat_mlp` | 默认模型 |
+| `encoder_small.yaml` | `96` | `96` | `[96, 192]` | `concat_mlp` | 更轻量 |
+| `encoder_wide.yaml` | `192` | `192` | `[192, 384]` | `concat_mlp` | 更高容量 |
+| `encoder_attention.yaml` | `128` | `128` | `[128, 256]` | `token_attention` | 显式 modality token fusion |
 
-## Recommended Encoder Comparison Order
-
-Run comparisons in this order:
+推荐比较：
 
 1. `base.yaml` vs `encoder_small.yaml`
 2. `base.yaml` vs `encoder_wide.yaml`
 3. `base.yaml` vs `encoder_attention.yaml`
 
-That sequence tells you:
-
-- whether the current model is overbuilt for the synthetic setting
-- whether widening the encoder moves metrics enough to justify extra cost
-- whether explicit attention fusion changes planning quality at the same hidden size
-
-## Encoder Comparison Guidance
-
-When comparing encoder configs, keep these fixed:
-
-- scorer mode
-- dataset config
-- manifest
-- checkpoint policy
-- batch size
-- diffusion step count
-- evaluation seed
-
-Do not mix encoder width changes with scorer-weight changes in the same comparison if you want
-clean attribution.
-
-Encoder matrix shortcut:
+命令：
 
 ```bash
 python scripts/run_ablation_matrix.py \
@@ -248,3 +164,40 @@ python scripts/run_ablation_matrix.py \
   --output-dir outputs/ablations/encoder_matrix \
   --device cpu
 ```
+
+## 保持固定的变量
+
+比较实验时尽量固定：
+
+- dataset config
+- manifest
+- checkpoint policy
+- batch size
+- candidate sample count
+- random seed
+- selection mode
+
+如果一次改变多个变量，scorer 和模型结构的影响会很难解释。
+
+## 输出产物
+
+`run_ablation_matrix.py` 会输出：
+
+- `*_ablation_matrix.json`
+- `*_ablation_matrix.md`
+
+这些产物会记录：
+
+- config summary
+- selection strategy
+- overall metrics
+- candidate-set metrics
+- 相对 baseline 的 delta
+
+## 面试讲解建议
+
+可以把消融实验讲成三层：
+
+1. **Baseline**：纯 heuristic scorer 是否能提供稳定选择。
+2. **Scorer upgrade**：learned scorer 是否改变选择结果，是否引入风险。
+3. **Candidate strategy**：noise、drift、route-anchor 哪种候选更适合作为 scorer supervision。

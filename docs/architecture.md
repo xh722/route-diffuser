@@ -1,247 +1,284 @@
-# RouteDiffuser Architecture
+# RouteDiffuser 架构说明
 
-This document describes how the major modules in `RouteDiffuser` fit together.
+本文档说明 `RouteDiffuser` 的模块边界、数据流和关键设计取舍。
 
-## Design Goal
-
-The repository is organized around one core idea:
-
-- keep the planner model, data interfaces, evaluation, export, and rollout boundaries explicit
-- avoid mixing private-system assumptions into the public project structure
-
-That means the code is intentionally split into small, named layers instead of one large training
-script or one monolithic planner module.
-
-## Top-Level Flow
+## 总体数据流
 
 ```text
-dataset config / manifest
-  -> dataset adapter
-  -> canonical scene tensors
-  -> planner model
-  -> candidate scoring
-  -> open-loop evaluation / rollout / export
-  -> reports and visual artifacts
+数据适配器 / synthetic generator
+  -> CanonicalSceneBatch
+  -> SceneEncoder
+  -> route prior
+  -> DiffusionDecoder
+  -> sampled trajectory candidates
+  -> trajectory scorer
+  -> metrics / reports / visualization / rollout
 ```
 
-## Module Layout
+核心原则：
 
-### `planner/datasets/`
+- 所有模型和评估逻辑都围绕统一的 `CanonicalSceneBatch`。
+- 模型生成和候选选择分离，便于替换 scorer。
+- open-loop evaluation、rollout 和 demo 共用同一套 metrics。
+- 公开仓库只保留可运行、可解释、无私有依赖的 planner core。
 
-Responsibility:
+## `planner/datasets/`
 
-- define the canonical scene schema used everywhere else
-- load or synthesize planning scenes through adapter-backed datasets
-- keep data selection separate from model logic
+职责：
 
-Key pieces:
+- 定义 planner-facing 的 canonical scene schema。
+- 提供 synthetic 数据集。
+- 提供 adapter-backed dataset boundary。
+- 计算数据统计缓存。
 
-- `schema.py`: canonical tensor contract
-- `adapters/`: pluggable dataset backends
-- `factory.py`: config-driven dataset construction
-- `synthetic.py`: backwards-compatible dataset wrapper and collate logic
+关键文件：
 
-Why it matters:
+- `schema.py`：`CanonicalSceneBatch`，包含 ego、neighbors、lanes、route、future trajectory 和 mask。
+- `synthetic.py`：兼容旧接口的 synthetic dataset wrapper。
+- `factory.py`：根据配置构造 dataset / dataloader。
+- `statistics.py`：计算 feature 统计信息。
+- `adapters/`：synthetic 和 NPZ bridge adapter。
 
-- future data adapters can be added without rewriting training or evaluation code
-- manifests provide a stable split/subset selection layer
+设计意义：
 
-### `planner/models/`
+- 训练、推理、评估、导出不需要关心数据来源。
+- 后续接公开真实数据时，只需要实现 adapter，不需要重写 planner。
 
-Responsibility:
+## `planner/preprocess/`
 
-- implement the route-conditioned diffusion planner
-- convert canonical scene tensors into denoised trajectory residual predictions
+职责：
 
-Key pieces:
+- 提供坐标、角度和路线先验相关预处理。
 
-- `scene_encoder.py`: scene context encoding
-- `diffusion_decoder.py`: denoiser backbone
-- `diffusion_planner.py`: assembled planner model and sampling logic
-- `trajectory_scorer.py`: learned candidate scoring head skeleton
+关键文件：
 
-Why it matters:
+- `angles.py`：heading 与 cos/sin 表示转换。
+- `coordinates.py`：局部坐标和几何工具。
+- `route_prior.py`：根据 route polyline 构造未来轨迹 prior。
+- `normalization.py`：归一化相关工具。
 
-- the repo can change the model internals later without changing the public data boundary
+设计意义：
 
-### `planner/inference/`
+- route prior 是模型生成的显式条件。
+- heading 使用 cos/sin 可以避免角度跳变。
 
-Responsibility:
+## `planner/models/`
 
-- inference-time postprocessing and candidate selection
+职责：
 
-Key pieces:
+- 定义 route-conditioned diffusion planner。
+- 编码场景上下文。
+- 解码轨迹残差。
+- 对候选轨迹进行 learned scoring。
 
-- `anchoring.py`: first-step anchoring
-- `scoring.py`: heuristic candidate ranking
-- hybrid heuristic + learned-scoring entry points
+关键文件：
 
-Why it matters:
+- `diffusion_planner.py`：主模型、训练 loss、采样、scorer candidate set。
+- `scene_encoder.py`：concat MLP 和 token attention 两种 scene fusion。
+- `diffusion_decoder.py`：条件 1D U-Net denoiser。
+- `trajectory_scorer.py`：候选轨迹 scorer head。
 
-- separates model prediction from planning-time selection policy
-- creates a clean future insertion point for learned scorers or value heads
+当前支持的模型实验轴：
 
-### `planner/metrics/`
+- `hidden_dim` / `time_dim` / `decoder_down_dims`
+- `scene_fusion_mode`: `concat_mlp` 或 `token_attention`
+- `diffusion_noise_mode`: 标准噪声或 pyramid 噪声
+- `scorer_candidate_strategy`: `gt_prior_noise`、`gt_prior_drift`、`mixed`、`route_anchor`
+- `scorer_target_mode`: `ade` 或 `reward`
 
-Responsibility:
+## `planner/diffusion/`
 
-- compute trajectory quality metrics for open-loop planning evaluation
+职责：
 
-Key pieces:
+- 提供 diffusion schedule、噪声采样和 DDPM step。
 
-- `trajectory.py`: displacement, route, comfort, clearance, and candidate-set metrics
-- `collision.py`: oriented-box collision checks for planner-style safety diagnostics
+关键文件：
 
-Why it matters:
+- `schedule.py`：linear beta schedule。
+- `noise.py`：标准噪声和 pyramid noise。
+- `utils.py`：`q_sample` 和 `ddpm_step`。
 
-- metrics remain reusable across evaluation, reports, and future regression checks
-- box-collision metrics are closer to vehicle footprint checks than point-distance thresholds
+设计意义：
 
-### `planner/reports/`
+- diffusion 工具与 planner 模型解耦，便于后续替换 sampler。
 
-Responsibility:
+## `planner/inference/`
 
-- define stable serialized report contracts
+职责：
 
-Key pieces:
+- 执行候选轨迹选择。
+- 将首帧锚定到当前 ego 状态。
+- 输出 scorer 诊断指标。
 
-- `evaluation.py`: structured evaluation report schema
+关键文件：
 
-Why it matters:
+- `anchoring.py`：保证预测轨迹首帧等于当前 ego 状态。
+- `scoring.py`：route、clearance、comfort、learned scorer 的 hybrid scoring。
 
-- scripts stop inventing ad hoc JSON formats
-- downstream tooling can rely on stable keys
+scoring 输出包括：
 
-### `planner/rollout/`
+- `scores`
+- `heuristic_scores`
+- `selected_indices`
+- `selected_trajectories`
+- `heuristic_regret`
+- `learned_preference_regret`
+- `matches_heuristic_best`
+- learned scorer 相关归一化诊断
 
-Responsibility:
+设计意义：
 
-- provide a lightweight closed-loop replanning loop
+- 生成和选择分离，真实规划系统中这通常也是两个不同职责。
+- scorer 诊断能帮助判断 learned scorer 是否真的改善选择。
 
-Key pieces:
+## `planner/metrics/`
 
-- `simulator.py`: minimal rollout trace generation and summary logic
+职责：
 
-Why it matters:
+- 提供 open-loop、candidate-set、comfort、clearance 和 collision 指标。
 
-- adds system-level behavior checks without requiring a heavy simulator service
+关键文件：
 
-### `planner/export/`
+- `trajectory.py`：ADE/FDE、route error、progress、comfort、clearance、candidate oracle metrics。
+- `collision.py`：oriented-box collision。
 
-Responsibility:
+安全指标：
 
-- provide deployment-facing wrappers around the planner core
+- `point_collision_rate`：基于点距离阈值。
+- `box_collision_rate`：基于车辆矩形 footprint，当前主要安全指标。
+- `collision_rate`：兼容字段，当前等价于 box collision。
 
-Key pieces:
+设计意义：
 
-- `onnx.py`: ONNX export wrapper for the tensor-only denoiser core
-- `parity.py`: PyTorch vs ONNX parity reporting
-- `benchmark.py`: small denoiser-core benchmark reporting
+- box collision 比点距离更接近真实车辆占用空间。
+- open-loop evaluation 和 closed-loop rollout 使用一致的安全定义。
 
-Why it matters:
+## `planner/trainers/`
 
-- export, parity, and benchmark concerns stay decoupled from training code
+职责：
 
-### `planner/visualization/`
+- 提供训练循环和评估入口。
 
-Responsibility:
+关键文件：
 
-- generate debugging and portfolio-facing plots
+- `diffusion_trainer.py`：optimizer、one-epoch training、detailed evaluation。
 
-Key pieces:
+设计意义：
 
-- `trajectory.py`: single-scene, candidate, gallery, and rollout trace plots
+- 训练、评估和报告生成共用稳定路径。
+- 评估报告可直接被 demo、ablation 和 registry 复用。
 
-Why it matters:
+## `planner/reports/`
 
-- visual outputs are treated as first-class artifacts, not notebook leftovers
+职责：
 
-### `planner/cli/`
+- 定义结构化报告和实验结果组织方式。
 
-Responsibility:
+关键文件：
 
-- hold the implementation for public command entry points
+- `evaluation.py`：evaluation report schema、JSON/Markdown 序列化。
+- `failure_analysis.py`：失败样例排序和报告。
+- `registry.py`：实验 registry / leaderboard。
 
-Key pieces:
+设计意义：
 
-- `common.py`: shared config, dataset, and model loading logic
-- task-specific modules for prepare/export/train/infer/eval/demo/rollout
+- 项目不是只打印指标，而是产出可比较、可归档、可展示的 report。
 
-Why it matters:
+## `planner/export/`
 
-- public scripts stay thin wrappers
-- runtime behavior is centralized and easier to maintain
+职责：
 
-### `scripts/`
+- 导出和验证部署相关产物。
 
-Responsibility:
+关键文件：
 
-- provide stable user-facing executable entry points
+- `onnx.py`：导出 denoiser core。
+- `parity.py`：ONNX 和 PyTorch 数值一致性检查。
+- `benchmark.py`：延迟和吞吐统计。
 
-Why it matters:
+注意：
 
-- repository users can run commands directly without importing package modules
-- legacy script names can remain as wrappers while public names stay clean
+- 当前 ONNX 导出的是 denoiser core，不是完整 DDPM sampling loop。
 
-## Canonical Scene Contract
+## `planner/rollout/`
 
-The canonical scene tensor contract is the most important interface in the project.
+职责：
 
-A valid scene batch includes:
+- 提供轻量 closed-loop replanning。
 
-- `ego_current_state`
-- `neighbor_history`
-- `neighbor_history_mask`
-- `lane_polylines`
-- `lane_polylines_mask`
-- `route_lanes`
-- `route_lanes_mask`
-- optional future trajectory tensors for supervised training and evaluation
+关键文件：
 
-Everything else in the project assumes this shape contract is stable.
+- `simulator.py`：单场景 rollout、世界/局部坐标转换、summary。
 
-## Export Boundary
+rollout 输出：
 
-The deployment-facing export boundary is intentionally narrower than the full planner.
+- executed world states
+- reference world states
+- selected candidate indices
+- selected scores
+- box collision flags
+- point collision flags
+- route error / closed-loop ADE/FDE
 
-Current ONNX export covers:
+设计意义：
 
-- canonical scene tensors
-- noisy trajectory residual input
-- timestep input
-- predicted noise output
+- 展示 planner 在 receding-horizon setting 下的闭环行为。
+- 保持轻量，不依赖私有仿真服务。
 
-It does not export:
+## `planner/visualization/`
 
-- the full iterative DDPM sampling loop
-- candidate scoring logic
-- closed-loop rollout logic
+职责：
 
-This is deliberate. The denoiser core is the cleanest deployable unit.
+- 生成轨迹对比图、候选轨迹图、场景画廊和 rollout plot。
 
-## Rollout Boundary
+设计意义：
 
-The closed-loop rollout layer is intentionally lightweight.
+- 自动驾驶规划项目必须能可视化，否则很难解释模型行为。
 
-Current rollout provides:
+## `scripts/` 与 `planner/cli/`
 
-- receding-horizon replanning
-- selected candidate execution
-- route-relative trace plotting
-- lightweight collision and route deviation summaries
+职责：
 
-It is not a full simulator platform. That boundary keeps the public project maintainable.
+- `planner/cli/` 存放真正的 CLI 实现。
+- `scripts/` 提供公开脚本入口和旧命令兼容 wrapper。
 
-## Artifact Philosophy
+设计意义：
 
-The repo treats artifacts as explicit products of each layer:
+- 保持命令入口清晰。
+- 兼容旧脚本名，减少使用成本。
 
-- manifests for data
-- checkpoints and logs for training
-- plots and tensors for inference
-- JSON/Markdown reports for evaluation
-- ONNX and parity reports for deployment
-- rollout traces and summaries for closed-loop analysis
+## 配置系统
 
-This is what makes the repository feel like a complete engineering project instead of a notebook
-collection.
+配置目录：
+
+- `configs/data/`
+- `configs/model/`
+- `configs/train/`
+- `configs/inference/`
+
+设计原则：
+
+- YAML 是主要控制面。
+- CLI flag 只做小范围运行时覆盖。
+- 消融实验通过配置文件表达，而不是硬编码在脚本里。
+
+## 当前边界
+
+包含：
+
+- planner core
+- diffusion trajectory generation
+- candidate scoring
+- metrics/reporting
+- visualization
+- ONNX export
+- lightweight rollout
+
+不包含：
+
+- 私有数据格式
+- 私有仿真服务
+- production deployment plugin
+- 完整 RL training stack
+
+这个边界保证项目可以公开、可复现、可解释。

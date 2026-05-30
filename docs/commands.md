@@ -1,16 +1,20 @@
-# RouteDiffuser Commands
+# RouteDiffuser 命令手册
 
-This document describes the public command surface for `RouteDiffuser`.
+本文档说明 `RouteDiffuser` 的公开命令入口、常用参数和典型用法。
 
-## Entry Points
+## 命令入口
 
-You can invoke the project in two equivalent ways.
+可以用两种方式运行项目。
 
-Script entry points:
+脚本入口：
 
 - `python scripts/prepare_dataset.py`
 - `python scripts/compute_dataset_stats.py`
 - `python scripts/export_dataset_npz.py`
+- `python scripts/train_planner.py`
+- `python scripts/infer_planner.py`
+- `python scripts/eval_planner.py`
+- `python scripts/demo_planner.py`
 - `python scripts/export_onnx.py`
 - `python scripts/check_onnx_parity.py`
 - `python scripts/benchmark_infer.py`
@@ -19,16 +23,16 @@ Script entry points:
 - `python scripts/run_ablation_matrix.py`
 - `python scripts/analyze_failures.py`
 - `python scripts/build_registry.py`
-- `python scripts/train_planner.py`
-- `python scripts/infer_planner.py`
-- `python scripts/eval_planner.py`
-- `python scripts/demo_planner.py`
 
-Installed command aliases after `pip install -e .[dev]`:
+安装后命令别名：
 
 - `route-diffuser-prepare`
 - `route-diffuser-stats`
 - `route-diffuser-export-npz`
+- `route-diffuser-train`
+- `route-diffuser-infer`
+- `route-diffuser-eval`
+- `route-diffuser-demo`
 - `route-diffuser-export-onnx`
 - `route-diffuser-check-onnx`
 - `route-diffuser-benchmark`
@@ -37,43 +41,47 @@ Installed command aliases after `pip install -e .[dev]`:
 - `route-diffuser-ablations`
 - `route-diffuser-failures`
 - `route-diffuser-registry`
-- `route-diffuser-train`
-- `route-diffuser-infer`
-- `route-diffuser-eval`
-- `route-diffuser-demo`
 
-Legacy compatibility wrappers still exist:
+兼容旧入口：
 
 - `python scripts/train_diffusion.py`
 - `python scripts/infer_scene.py`
 - `python scripts/eval_diffusion.py`
 - `python scripts/demo_portfolio.py`
 
-## Shared Config Files
+## 配置文件
 
-Default config files:
+默认配置：
 
-- data: `configs/data/synthetic.yaml`
-- data example for public NPZ format: `configs/data/npz_example.yaml`
-- model: `configs/model/base.yaml`
-- ablation config for heuristic-only selection: `configs/model/heuristic_only.yaml`
-- ablation config for light learned-scorer influence: `configs/model/learned_scorer_light.yaml`
-- ablation config for learned scorer experiments: `configs/model/learned_scorer.yaml`
-- ablation config for stronger learned-scorer influence: `configs/model/learned_scorer_strong.yaml`
-- candidate-strategy ablations: `configs/model/learned_scorer_drift.yaml`, `configs/model/learned_scorer_mixed.yaml`, `configs/model/learned_scorer_route_anchor.yaml`
-- reward-aware scorer ablation: `configs/model/learned_scorer_reward.yaml`
-- encoder-scale ablations: `configs/model/encoder_small.yaml`, `configs/model/encoder_wide.yaml`, `configs/model/encoder_attention.yaml`
-- train: `configs/train/base.yaml`
-- inference: `configs/inference/base.yaml`
+- 数据：`configs/data/synthetic.yaml`
+- NPZ 示例：`configs/data/npz_example.yaml`
+- 模型：`configs/model/base.yaml`
+- 训练：`configs/train/base.yaml`
+- 推理：`configs/inference/base.yaml`
 
-The public CLI is built so these configs remain the primary control surface. Command-line flags are
-mainly for small runtime overrides.
+常用模型消融配置：
 
-## Prepare Dataset
+- `configs/model/heuristic_only.yaml`
+- `configs/model/learned_scorer_light.yaml`
+- `configs/model/learned_scorer.yaml`
+- `configs/model/learned_scorer_strong.yaml`
+- `configs/model/learned_scorer_drift.yaml`
+- `configs/model/learned_scorer_mixed.yaml`
+- `configs/model/learned_scorer_route_anchor.yaml`
+- `configs/model/learned_scorer_reward.yaml`
+- `configs/model/encoder_small.yaml`
+- `configs/model/encoder_wide.yaml`
+- `configs/model/encoder_attention.yaml`
 
-Generate a manifest for adapter-backed datasets.
+原则：
 
-Minimal example:
+- YAML 是主要控制面。
+- CLI 参数只做少量运行时覆盖。
+- 实验差异优先通过配置文件表达。
+
+## 准备数据 Manifest
+
+用途：生成固定数据切片，方便训练、评估和 demo 复现。
 
 ```bash
 python scripts/prepare_dataset.py \
@@ -81,13 +89,15 @@ python scripts/prepare_dataset.py \
   --output outputs/manifests/route_diffuser_synthetic_train.json
 ```
 
-Useful flags:
+常用参数：
 
-- `--split`: label the manifest split, such as `train`, `val`, `test`
-- `--start-index`: start index for a subset manifest
-- `--num-samples`: number of entries to include
+- `--data-config`
+- `--output`
+- `--split`
+- `--start-index`
+- `--num-samples`
 
-Example subset manifest:
+小样本示例：
 
 ```bash
 python scripts/prepare_dataset.py \
@@ -97,18 +107,9 @@ python scripts/prepare_dataset.py \
   --num-samples 8
 ```
 
-Output:
+## 计算数据统计
 
-- a JSON manifest under the requested path
-
-For NPZ-backed public-format data, point the data config at `configs/data/npz_example.yaml` and
-set `source_path` to your normalized `.npz` file.
-
-## Compute Dataset Statistics
-
-Compute cached per-feature statistics for one dataset configuration or prepared subset.
-
-Minimal example:
+用途：生成特征统计缓存，用于数据检查和归一化参考。
 
 ```bash
 python scripts/compute_dataset_stats.py \
@@ -116,24 +117,28 @@ python scripts/compute_dataset_stats.py \
   --output outputs/stats/route_diffuser_synthetic_stats.json
 ```
 
-Useful flags:
+常用参数：
 
-- `--manifest-path`: compute stats for a prepared subset
-- `--batch-size`: CPU-side aggregation batch size
-- `--max-scenes`: limit the number of scenes used for the cache
-- `--output`: target JSON cache path
+- `--manifest-path`
+- `--batch-size`
+- `--max-scenes`
+- `--output`
 
-Typical use:
+## 导出 NPZ Bridge 数据
 
-1. prepare a subset manifest if needed
-2. compute and save dataset statistics once
-3. reuse the cached stats file as a reference artifact for normalization and dataset inspection
+用途：把 canonical samples 导出成公开 `.npz` 格式。
 
-## Train Planner
+```bash
+python scripts/export_dataset_npz.py \
+  --data-config configs/data/synthetic.yaml \
+  --output outputs/datasets/route_diffuser_synthetic.npz
+```
 
-Train the planner and write checkpoints plus a CSV training log.
+导出后可在 `configs/data/npz_example.yaml` 中指定 `source_path`，再走同一套训练/评估流程。
 
-Minimal example:
+## 训练 Planner
+
+用途：训练扩散规划器并保存 checkpoint。
 
 ```bash
 python scripts/train_planner.py \
@@ -142,15 +147,15 @@ python scripts/train_planner.py \
   --train-config configs/train/base.yaml
 ```
 
-Useful flags:
+常用参数：
 
-- `--manifest-path`: train from a prepared subset manifest
-- `--output-dir`: override `outputs/train`
-- `--epochs`: quick override without editing YAML
-- `--batch-size`: quick override without editing YAML
-- `--device`: `cpu`, `cuda`, or `auto`
+- `--manifest-path`
+- `--output-dir`
+- `--epochs`
+- `--batch-size`
+- `--device`
 
-Low-load example:
+低负载示例：
 
 ```bash
 python scripts/train_planner.py \
@@ -160,40 +165,14 @@ python scripts/train_planner.py \
   --device cpu
 ```
 
-Outputs:
+输出：
 
 - `train_log.csv`
 - `latest.pt`
 
-## Export Dataset To NPZ
+## 推理 Planner
 
-Export canonical planning samples into the public `.npz` bridge format.
-
-Minimal example:
-
-```bash
-python scripts/export_dataset_npz.py \
-  --data-config configs/data/synthetic.yaml \
-  --output outputs/datasets/route_diffuser_synthetic.npz
-```
-
-Useful flags:
-
-- `--manifest-path`: export only a prepared subset
-- `--output`: target `.npz` file
-
-Typical use:
-
-1. generate a subset manifest
-2. export that subset to `.npz`
-3. point `configs/data/npz_example.yaml` at the exported file
-4. run `prepare_dataset.py` again on the NPZ-backed config if needed
-
-## Infer Planner
-
-Sample future trajectories for one evaluation batch and write prediction artifacts.
-
-Minimal example:
+用途：采样未来轨迹并输出预测图。
 
 ```bash
 python scripts/infer_planner.py \
@@ -202,289 +181,24 @@ python scripts/infer_planner.py \
   --inference-config configs/inference/base.yaml
 ```
 
-Useful flags:
+常用参数：
 
-- `--checkpoint`: load a trained checkpoint
-- `--manifest-path`: infer on a prepared manifest subset
-- `--output-dir`: override `outputs/infer`
-- `--batch-size`: override eval batch size
-- `--num-samples`: candidate samples per scene
-- `--device`: `cpu`, `cuda`, or `auto`
+- `--checkpoint`
+- `--manifest-path`
+- `--output-dir`
+- `--batch-size`
+- `--num-samples`
+- `--device`
+- `--selection-mode`
 
-Outputs:
+输出：
 
 - `predictions.pt`
 - `prediction_plot.png`
 
-## Export ONNX
+## 评估 Planner
 
-Export the tensor-only planner denoiser core to ONNX.
-
-Minimal example:
-
-```bash
-python scripts/export_onnx.py \
-  --data-config configs/data/synthetic.yaml \
-  --model-config configs/model/base.yaml \
-  --output outputs/onnx/planner_denoiser.onnx
-```
-
-Useful flags:
-
-- `--checkpoint`: export a trained checkpoint
-- `--manifest-path`: export using a prepared subset
-- `--output`: target ONNX file path
-- `--metadata-output`: target JSON metadata path
-- `--batch-size`: example batch used for tracing
-- `--device`: `cpu`, `cuda`, or `auto`
-- `--opset-version`: ONNX opset version
-- `--static-batch`: disable dynamic batch axes
-
-Important note:
-
-- this command exports the denoiser core, not the full iterative DDPM sampling loop
-- the exported graph corresponds to:
-  canonical scene tensors + noisy trajectory + timestep -> predicted noise
-
-## Check ONNX Parity
-
-Compare the exported ONNX denoiser core against the PyTorch wrapper on one batch.
-
-Minimal example:
-
-```bash
-python scripts/check_onnx_parity.py \
-  --onnx-path outputs/onnx/planner_denoiser.onnx \
-  --data-config configs/data/synthetic.yaml
-```
-
-Useful flags:
-
-- `--checkpoint`: parity-check a trained checkpoint
-- `--manifest-path`: parity-check on a prepared subset
-- `--output`: target JSON report path
-- `--batch-size`: parity-check batch size
-- `--device`: torch-side device, recommended `cpu` for light checks
-- `--atol`: absolute tolerance
-- `--rtol`: relative tolerance
-
-Output:
-
-- `parity_report.json`
-
-This command requires `onnxruntime`.
-
-## Benchmark Denoiser Core
-
-Run a lightweight latency benchmark for the PyTorch denoiser core.
-
-Minimal example:
-
-```bash
-python scripts/benchmark_infer.py \
-  --data-config configs/data/synthetic.yaml \
-  --model-config configs/model/base.yaml \
-  --output outputs/benchmarks/denoiser_core_benchmark.json \
-  --device cpu
-```
-
-Useful flags:
-
-- `--checkpoint`: benchmark a trained checkpoint
-- `--manifest-path`: benchmark a prepared subset
-- `--output`: target JSON report path
-- `--batch-size`: benchmark batch size
-- `--warmup-iterations`: warmup count before timing
-- `--iterations`: measured iterations
-- `--device`: `cpu`, `cuda`, or `auto`
-
-Output:
-
-- `denoiser_core_benchmark.json`
-
-This benchmark only measures the denoiser core forward path, not the full iterative sampling loop.
-
-## Closed-Loop Rollout
-
-Run a lightweight receding-horizon rollout on one scenario.
-
-Minimal example:
-
-```bash
-python scripts/rollout_planner.py \
-  --data-config configs/data/synthetic.yaml \
-  --model-config configs/model/base.yaml \
-  --output-dir outputs/rollout \
-  --device cpu
-```
-
-Useful flags:
-
-- `--checkpoint`: rollout a trained checkpoint
-- `--manifest-path`: rollout a prepared subset
-- `--output-dir`: target rollout artifact directory
-- `--num-steps`: rollout horizon in replanning steps
-- `--num-samples`: candidate samples per step
-- `--device`: `cpu`, `cuda`, or `auto`
-
-Outputs:
-
-- `rollout_trace.pt`
-- `rollout_summary.json`
-- `rollout_summary.md`
-- `rollout_plot.png`
-
-This is a lightweight closed-loop planner loop, not a full simulator service.
-
-## Compare Scorer Modes
-
-Compare `heuristic` and `hybrid` candidate selection under the same evaluation seed.
-
-Minimal example:
-
-```bash
-python scripts/compare_scorer.py \
-  --data-config configs/data/synthetic.yaml \
-  --model-config configs/model/learned_scorer.yaml \
-  --output outputs/eval/scorer_comparison.json \
-  --device cpu
-```
-
-Useful flags:
-
-- `--checkpoint`: compare a trained checkpoint
-- `--manifest-path`: compare on a prepared subset
-- `--output`: target JSON report path
-- `--batch-size`: evaluation batch size
-- `--num-samples`: candidate samples per scene
-- `--device`: recommended `cpu` for light checks
-
-Output:
-
-- `scorer_comparison.json`
-
-## Run Ablation Matrix
-
-Run the standard scorer ablation config set and summarize all runs into one matrix.
-
-Minimal example:
-
-```bash
-python scripts/run_ablation_matrix.py \
-  --data-config configs/data/synthetic.yaml \
-  --output-dir outputs/ablations/scorer_matrix \
-  --device cpu
-```
-
-Default config set:
-
-- `configs/model/heuristic_only.yaml`
-- `configs/model/learned_scorer_light.yaml`
-- `configs/model/learned_scorer.yaml`
-- `configs/model/learned_scorer_strong.yaml`
-- `configs/model/learned_scorer_drift.yaml`
-- `configs/model/learned_scorer_mixed.yaml`
-- `configs/model/learned_scorer_reward.yaml`
-
-Useful flags:
-
-- `--matrix scorer`
-- `--matrix encoder`
-- `--model-configs ...` to override the preset config set
-- `--baseline-config ...` to override the baseline
-
-Encoder matrix example:
-
-```bash
-python scripts/run_ablation_matrix.py \
-  --matrix encoder \
-  --output-dir outputs/ablations/encoder_matrix \
-  --device cpu
-```
-
-Outputs:
-
-- `scorer_ablation_matrix.json/.md`
-- `encoder_ablation_matrix.json/.md`
-
-This is the preferred command when you want one compact summary instead of multiple manual compare
-invocations.
-
-## Analyze Failures
-
-Rank the worst scenes by one chosen metric and produce a failure-analysis report.
-
-Minimal example:
-
-```bash
-python scripts/analyze_failures.py \
-  --data-config configs/data/synthetic.yaml \
-  --model-config configs/model/base.yaml \
-  --output-dir outputs/eval/failures \
-  --ranking-metric fde \
-  --device cpu
-```
-
-Useful flags:
-
-- `--selection-mode`: `auto`, `heuristic`, or `hybrid`
-- `--ranking-metric`: for example `fde`, `ade`, `route_error`
-- `--top-k`: number of worst cases to retain overall and per scenario
-- `--manifest-path`: restrict analysis to a subset
-- `--checkpoint`: analyze a trained checkpoint
-
-Outputs:
-
-- `failure_analysis.json`
-- `failure_analysis.md`
-
-## Build Registry
-
-Collect evaluation, failure-analysis, and ablation JSON outputs into one registry and leaderboard.
-
-Minimal example:
-
-```bash
-python scripts/build_registry.py \
-  outputs/eval/evaluation_report.json \
-  outputs/eval/failures/failure_analysis.json \
-  outputs/ablations/scorer_matrix/scorer_ablation_matrix.json \
-  --output-dir outputs/registry
-```
-
-Useful flags:
-
-- `--primary-metric`: leaderboard sorting metric, default `fde`
-- `--output-dir`: target directory for registry outputs
-
-Outputs:
-
-- `experiment_registry.json`
-- `leaderboard.md`
-
-The generated leaderboard combines:
-
-- aggregate evaluation metrics
-- selection strategy metadata
-- worst-case failure signals when matching failure reports are present
-
-Recommended ablation pair:
-
-- `configs/model/heuristic_only.yaml`
-- `configs/model/learned_scorer.yaml`
-
-Recommended multi-level ablation:
-
-- `configs/model/heuristic_only.yaml`
-- `configs/model/learned_scorer_light.yaml`
-- `configs/model/learned_scorer.yaml`
-- `configs/model/learned_scorer_strong.yaml`
-
-## Evaluate Planner
-
-Run structured open-loop evaluation and emit formal JSON plus Markdown reports.
-
-Minimal example:
+用途：生成结构化 open-loop evaluation report。
 
 ```bash
 python scripts/eval_planner.py \
@@ -493,114 +207,241 @@ python scripts/eval_planner.py \
   --inference-config configs/inference/base.yaml
 ```
 
-Useful flags:
+常用参数：
 
-- `--checkpoint`: evaluate a trained checkpoint
-- `--manifest-path`: evaluate a prepared subset
-- `--output-dir`: override `outputs/eval`
-- `--batch-size`: override eval batch size
-- `--num-samples`: candidate samples per scene
-- `--device`: `cpu`, `cuda`, or `auto`
+- `--checkpoint`
+- `--manifest-path`
+- `--output-dir`
+- `--batch-size`
+- `--num-samples`
+- `--device`
+- `--selection-mode`
 
-Outputs:
+输出：
 
 - `evaluation_report.json`
 - `evaluation_report.md`
 
-## Demo Planner
+## 运行作品集 Demo
 
-Run the full portfolio demo: train a small model, sample trajectories, generate visualizations, and
-write a portfolio summary.
-
-Minimal example:
-
-```bash
-python scripts/demo_planner.py
-```
-
-Useful flags:
-
-- `--manifest-path`: run the demo on a prepared subset
-- `--output-dir`: override `outputs/portfolio_demo`
-- `--epochs`: shorten or lengthen the demo train run
-- `--train-batch-size`: override training batch size
-- `--eval-batch-size`: override evaluation batch size
-- `--num-samples`: candidate samples per scene
-- `--device`: `cpu`, `cuda`, or `auto`
-
-Low-load example:
+用途：训练一个小模型，生成适合简历和 GitHub 展示的完整产物。
 
 ```bash
 python scripts/demo_planner.py \
-  --manifest-path outputs/manifests/tiny_train.json \
-  --epochs 1 \
-  --train-batch-size 2 \
-  --eval-batch-size 2 \
-  --num-samples 2 \
+  --epochs 20 \
   --device cpu
 ```
 
-Outputs:
+常用参数：
 
-- `demo_checkpoint.pt`
-- `predictions.pt`
-- `prediction_plot.png`
-- `candidate_trajectories.png`
-- `scenario_gallery.png`
-- `evaluation_report.json`
-- `evaluation_report.md`
-- `portfolio_summary.json`
-- `portfolio_summary.md`
+- `--model-config`
+- `--data-config`
+- `--train-config`
+- `--inference-config`
+- `--output-dir`
+- `--epochs`
+- `--num-samples`
+- `--selection-mode`
 
-## Resource Guidance
+输出目录：
 
-If the machine is resource-constrained:
+- `outputs/portfolio_demo/`
 
-- generate a small manifest with `--num-samples`
-- use `--device cpu` for smoke runs
-- keep `--epochs` low for demo and training commands
-- reduce `--batch-size`, `--train-batch-size`, and `--eval-batch-size`
-- reduce `--num-samples` during inference and evaluation
+## 导出 ONNX
 
-The fastest low-risk smoke path is usually:
+用途：导出 denoiser core。
 
-1. `prepare_dataset.py` with a tiny subset
-2. `train_planner.py` with `--epochs 1 --batch-size 2 --device cpu`
-3. `infer_planner.py` or `eval_planner.py` on the same manifest
+```bash
+python scripts/export_onnx.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/base.yaml \
+  --output outputs/onnx/planner_denoiser.onnx
+```
 
-## Artifact Locations
+常用参数：
 
-Default output roots:
+- `--checkpoint`
+- `--manifest-path`
+- `--metadata-output`
+- `--batch-size`
+- `--device`
+- `--opset-version`
+- `--static-batch`
 
-- manifests: `outputs/manifests/`
-- training: `outputs/train/`
-- inference: `outputs/infer/`
-- evaluation: `outputs/eval/`
-- portfolio demo: `outputs/portfolio_demo/`
+注意：
 
-## Public NPZ Format
+- 导出的是 denoiser core，不是完整 DDPM sampling loop。
 
-The first public-format adapter uses one `.npz` file containing canonical scene tensors.
+## 检查 ONNX Parity
 
-Required keys:
+用途：比较 ONNXRuntime 和 PyTorch wrapper 的数值一致性。
 
-- `ego_current_state`
-- `neighbor_history`
-- `neighbor_history_mask`
-- `lane_polylines`
-- `lane_polylines_mask`
-- `route_lanes`
-- `route_lanes_mask`
-- `future_ego_trajectory`
-- `future_ego_mask`
+```bash
+python scripts/check_onnx_parity.py \
+  --onnx-path outputs/onnx/planner_denoiser.onnx \
+  --data-config configs/data/synthetic.yaml
+```
 
-Optional key:
+常用参数：
 
-- `scenario_name`
+- `--onnx-path`
+- `--data-config`
+- `--model-config`
+- `--checkpoint`
+- `--tolerance`
+- `--device`
 
-Expected leading batch dimension:
+## Benchmark
 
-- each array should have shape `[N, ...]`
-- all arrays must agree on `N`
+用途：统计推理延迟和吞吐。
 
-This adapter is meant as a public bridge format, not as the final large-scale dataset interface.
+```bash
+python scripts/benchmark_infer.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/base.yaml \
+  --device cpu
+```
+
+常用参数：
+
+- `--batch-size`
+- `--warmup`
+- `--iterations`
+- `--num-samples`
+- `--device`
+
+## Closed-loop Rollout
+
+用途：运行轻量 receding-horizon rollout。
+
+```bash
+python scripts/rollout_planner.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/base.yaml \
+  --num-steps 8 \
+  --device cpu
+```
+
+常用参数：
+
+- `--checkpoint`
+- `--manifest-path`
+- `--output-dir`
+- `--num-steps`
+- `--num-samples`
+- `--selection-mode`
+
+输出：
+
+- `rollout_trace.pt`
+- `rollout_summary.json`
+- `rollout_summary.md`
+- `rollout_plot.png`
+
+## Scorer 对比
+
+用途：同一批样本下比较 heuristic 和 hybrid scorer。
+
+```bash
+python scripts/compare_scorer.py \
+  --data-config configs/data/synthetic.yaml \
+  --model-config configs/model/learned_scorer_route_anchor.yaml \
+  --output outputs/eval/scorer_comparison_route_anchor.json \
+  --device cpu
+```
+
+重点观察：
+
+- ADE/FDE delta
+- route error delta
+- box collision rate delta
+- heuristic regret
+- learned preference regret
+
+## 消融实验矩阵
+
+Scorer matrix：
+
+```bash
+python scripts/run_ablation_matrix.py \
+  --matrix scorer \
+  --output-dir outputs/ablations/scorer_matrix \
+  --device cpu
+```
+
+Encoder matrix：
+
+```bash
+python scripts/run_ablation_matrix.py \
+  --matrix encoder \
+  --output-dir outputs/ablations/encoder_matrix \
+  --device cpu
+```
+
+自定义模型列表：
+
+```bash
+python scripts/run_ablation_matrix.py \
+  --matrix scorer \
+  --model-configs \
+    configs/model/heuristic_only.yaml \
+    configs/model/learned_scorer.yaml \
+    configs/model/learned_scorer_route_anchor.yaml \
+  --device cpu
+```
+
+## Failure Analysis
+
+用途：按指标排序失败样例，定位高风险场景。
+
+```bash
+python scripts/analyze_failures.py \
+  --ranking-metric fde \
+  --top-k 5 \
+  --device cpu
+```
+
+常用 ranking metric：
+
+- `ade`
+- `fde`
+- `route_error`
+- `collision`
+- `comfort_violation`
+
+## 构建 Registry
+
+用途：汇总多个评估、失败分析和消融结果。
+
+```bash
+python scripts/build_registry.py \
+  --input-dir outputs \
+  --output outputs/registry/registry.json
+```
+
+输出：
+
+- `registry.json`
+- `leaderboard.md`
+
+## 推荐验证命令
+
+语法检查：
+
+```bash
+python -m compileall planner scripts tests
+```
+
+单元测试：
+
+```bash
+pytest -q
+```
+
+最小 smoke：
+
+```bash
+python scripts/prepare_dataset.py --num-samples 4 --output outputs/manifests/tiny.json
+python scripts/train_planner.py --manifest-path outputs/manifests/tiny.json --epochs 1 --batch-size 2 --device cpu
+python scripts/eval_planner.py --manifest-path outputs/manifests/tiny.json --batch-size 2 --num-samples 1 --device cpu
+```

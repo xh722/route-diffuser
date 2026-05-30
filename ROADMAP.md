@@ -1,232 +1,134 @@
-# RouteDiffuser Roadmap
+# RouteDiffuser 路线图
 
-This document turns the current `planner core` repository into a concrete delivery plan for a
-public, reproducible autonomous driving planning project.
+这份路线图用于把 `RouteDiffuser` 打磨成一个公开、可复现、适合社招简历展示的自动驾驶规划项目。目标不是复刻公司内部系统，而是把规划核心能力整理成外部读者能理解、能运行、能评价的工程作品。
 
-The intent is not to clone a private production stack. The intent is to translate the strongest
-ideas from a larger planning system into a public repo that is actually finishable.
+## 项目目标
 
-## Project Goal
+`RouteDiffuser` 的目标是提供一个完整的 planner-core 项目：
 
-Build `RouteDiffuser` into a complete public planning project with:
+- 可复现的训练、推理、评估、导出和 demo 命令。
+- 统一的场景 schema 和数据适配边界。
+- 至少一条公开格式数据路径。
+- 结构化评估报告和可视化产物。
+- ONNX 导出、parity 检查和 benchmark。
+- 轻量 closed-loop rollout。
+- 面向简历和 GitHub 展示的案例文档。
 
-- reproducible training, inference, evaluation, and demo commands
-- at least one non-synthetic data adapter
-- formal evaluation reports instead of ad hoc metrics only
-- deployable inference export via ONNX
-- a lightweight closed-loop rollout environment
-- documentation, tests, and release-ready artifacts
+## V1 完成标准
 
-## Definition Of Done
+V1 版本完成时，应满足：
 
-`V1` is complete when all of the following are true:
+1. 新机器 clone 仓库后，可以按 README 安装依赖并运行 train/eval/infer/export/demo。
+2. 支持 synthetic 数据和至少一种公开格式数据适配路径。
+3. evaluation 输出 JSON 和 Markdown 报告，包含 overall、scenario、candidate-set、安全和舒适性指标。
+4. denoiser core 可以导出 ONNX，并通过 PyTorch parity check。
+5. 具备轻量 closed-loop rollout，输出 trace、summary 和 plot。
+6. 主要 pipeline 有测试和 CI smoke check。
+7. 文档能让面试官快速理解项目价值、架构和边界。
 
-1. A new machine can clone the repo, install dependencies, and run train, eval, infer, export,
-   and demo commands from the README.
-2. The repo supports both the current synthetic generator and at least one public-format dataset
-   adapter.
-3. Evaluation produces structured JSON and Markdown reports with overall metrics, scenario
-   breakdowns, candidate-set metrics, and safety/comfort proxies.
-4. The model can be exported to ONNX and checked for numerical parity against PyTorch inference.
-5. The repo includes a lightweight closed-loop rollout demo with metrics and visual artifacts.
-6. Tests and smoke checks cover the main pipeline and pass in CI.
+## V1 非目标
 
-## Non-Goals For V1
+以下内容不纳入公开 V1：
 
-These are explicitly out of scope for the first complete version:
+- 私有 protobuf / service stack。
+- 公司内部日志格式和私有数据适配器。
+- TensorRT 或内部部署插件。
+- 多机分布式训练。
+- 生产级 RL serving。
+- 等价于公司内部仿真的完整 closed-loop 平台。
 
-- private protobuf or service stacks
-- proprietary vehicle logs or company-internal dataset formats
-- TensorRT or private deployment plugins
-- multi-node distributed training infrastructure
-- production RL serving or reward-module bindings
-- full simulator integration equivalent to internal autonomous driving platforms
+## 当前能力地图
 
-## Gap Map
-
-The current repo is already strong in the planner core:
-
-- canonical scene schema
-- diffusion planner model
-- synthetic scenario generation
-- open-loop evaluation
-- candidate scoring heuristics
-- portfolio-quality demo artifacts
-
-The missing layers are what make the project feel complete:
-
-| Capability | Current Repo | Needed For V1 |
+| 能力 | 当前状态 | 说明 |
 | --- | --- | --- |
-| Data preparation | Synthetic only | Public-format adapter, dataset manifests, preprocessing scripts |
-| Evaluation | Open-loop metrics and reports | Formal report package, scenario taxonomies, benchmark outputs |
-| Deployment | PyTorch only | ONNX export, parity tests, latency benchmark |
-| Closed-loop behavior | None | Lightweight rollout simulator and closed-loop metrics |
-| Experiment management | Basic configs | Structured runs, checkpoints, reproducible experiment table |
-| Release packaging | README and demo | Command matrix, model card, roadmap, CI smoke checks |
+| 数据 schema | 已完成 | canonical scene tensors 覆盖 ego、neighbor、lane、route 和 mask |
+| 数据适配 | 已完成 | synthetic + NPZ bridge + manifest |
+| 扩散模型 | 已完成 | route-prior residual diffusion + conditional 1D U-Net |
+| 候选选择 | 已增强 | heuristic / learned hybrid scoring + scorer diagnostics |
+| 结构化候选 | 已增强 | noise、drift、mixed、route-anchor candidate strategy |
+| 安全指标 | 已增强 | point collision + oriented-box collision |
+| 评估报告 | 已完成 | JSON / Markdown report + scenario breakdown |
+| 部署导出 | 已完成 | ONNX export、parity、benchmark |
+| 闭环 rollout | 已完成 | lightweight receding-horizon rollout |
+| 实验管理 | 已完成 | scorer/encoder ablation + registry |
+| 简历材料 | 已完成 | portfolio case study + demo artifacts |
 
-## Delivery Strategy
+## 阶段规划
 
-The repo should evolve in this order:
+### P0：公开项目骨架
 
-1. Standardize interfaces and artifacts.
-2. Add one realistic data path.
-3. Add evaluation and deployment as first-class features.
-4. Add a lightweight closed-loop environment.
-5. Only then spend major effort on model upgrades.
+目标：让项目从 demo 脚本变成可运行的公开仓库。
 
-This keeps the project from becoming a research sandbox with incomplete engineering.
+已完成：
 
-## Milestones
+- [x] 增加 `planner/datasets/adapters/`，定义稳定数据适配边界。
+- [x] 增加 `scripts/prepare_dataset.py`，支持 manifest 生成。
+- [x] 使用 JSON manifest 管理数据切片。
+- [x] 把 synthetic 数据配置从模型配置中拆开。
+- [x] 评估输出结构化 report contract。
+- [x] 增加 train/infer/eval/demo smoke 脚本。
+- [x] 增加 CI 路径。
+- [x] 增加命令、产物和架构文档。
 
-### P0: Foundation And Public Project Skeleton
+### P1：公开 V1 完整能力
 
-Focus: make the repo operational as a real project instead of only a demo.
+目标：具备数据、评估、部署、闭环和文档闭环。
 
-Target outcome:
+已完成：
 
-- one clear command path for synthetic training, inference, evaluation, and demo
-- stable artifact layout under `outputs/`
-- extensible dataset adapter boundary
-- formal evaluation report schema
+- [x] 实现公开 NPZ bridge format。
+- [x] 增加数据统计缓存。
+- [x] 统一 train/eval/infer CLI。
+- [x] 增加 ONNX export。
+- [x] 增加 ONNX parity check。
+- [x] 增加 inference benchmark。
+- [x] 增加 lightweight closed-loop rollout。
+- [x] 增加 rollout metrics 和 trace plot。
+- [x] 扩展 README、docs 和 release checklist。
 
-Planned work:
+### P2：模型和研究能力升级
 
-- [x] Add `planner/datasets/adapters/` with a stable adapter interface.
-- [x] Add `scripts/prepare_dataset.py` for manifest generation and preprocessing.
-- [x] Introduce dataset manifests such as JSON/JSONL/NPZ index files instead of direct ad hoc loading.
-- [x] Separate synthetic dataset config from future real-data adapter configs.
-- [x] Refactor evaluation output into a stable report contract:
-      overall metrics, scenario metrics, oracle metrics, selection diagnostics, artifact paths.
-- [x] Add smoke scripts for `train`, `infer`, `eval`, and `demo`.
-- [x] Add a minimal CI path that runs tests and at least one pipeline smoke command.
-- [x] Add docs for repo scope, supported commands, and artifact meanings.
+目标：让项目不只是工程包装，还具备可研究的实验轴。
 
-Exit criteria:
+已完成：
 
-- `pytest` passes
-- synthetic train/eval/infer/demo all run from documented commands
-- evaluation writes stable report files under `outputs/eval/`
-- the adapter boundary is in place even if only synthetic data uses it initially
+- [x] 增加 learned trajectory scorer head。
+- [x] 增加 reward-aware scorer target mode。
+- [x] 增加 scorer candidate strategy：noise、drift、mixed、route-anchor。
+- [x] 增加 attention-based scene fusion ablation。
+- [x] 增加 scorer diagnostics：heuristic regret、learned preference regret、agreement rate。
+- [x] 增加 oriented-box collision，并接入 open-loop 和 rollout。
+- [x] 增加 scorer/encoder ablation matrix。
+- [x] 增加 failure analysis 和 registry。
 
-### P1: Complete Public V1
+后续可继续做：
 
-Focus: cross the line from `planner core` to `complete project`.
+- [ ] 在公开真实数据上验证 NPZ bridge 流程。
+- [ ] 增加 scorer calibration report。
+- [ ] 增加 failure-case gallery。
+- [ ] 增加 model card / data card。
+- [ ] 进一步升级 scene encoder 为 ego-query cross attention。
+- [ ] 在 rollout 稳定后考虑 reward modeling 或 offline RL fine-tuning。
 
-Target outcome:
+## 推荐后续优先级
 
-- one public-format data path
-- one deployment export path
-- one lightweight closed-loop loop
-- complete repo docs
+1. **真实公开数据示例**：用 NPZ bridge 准备一个可公开的小样例，让项目说服力更强。
+2. **Scorer calibration report**：比较 heuristic best、learned best、selected candidate 和 oracle rank。
+3. **Failure gallery**：为 collision、route deviation、comfort violation 自动出图。
+4. **Model card**：说明训练数据、指标、适用范围和限制。
+5. **CI smoke command**：在 CI 中加入一个超小规模 CLI smoke，进一步证明可运行性。
 
-Planned work:
+## 主要风险
 
-- [x] Implement one public-format data adapter.
-      Current implementation uses a normalized NPZ bridge format that is easy to document.
-- [x] Add dataset normalization statistics and caching.
-- [x] Add `scripts/train_planner.py` and `scripts/eval_planner.py` as user-facing entry points
-      that work for both synthetic and adapter-backed data.
-- [x] Add `scripts/export_onnx.py`.
-- [x] Add ONNX vs PyTorch parity checking with fixed tolerance.
-- [x] Add inference benchmark script for latency and throughput on CPU and GPU.
-- [x] Add `planner/sim/` or `planner/rollout/` for lightweight closed-loop rollout.
-- [x] Add rollout metrics: collision rate, route deviation, progress, comfort proxies, recovery rate.
-      Current implementation provides a lightweight first pass, not a full simulator-grade metric suite.
-- [x] Generate rollout visual artifacts: GIF, frame gallery, or video snippets.
-      Current implementation provides a rollout trace plot rather than video assets.
-- [x] Expand README with a full command matrix and project architecture diagram.
-- [x] Add a release checklist for checkpoints, demo outputs, and docs.
+- 数据范围膨胀：过早支持太多格式会拖垮维护成本。
+- 评估指标频繁改名：会影响报告、registry 和文档稳定性。
+- 仿真过度设计：公开项目应该保持轻量 rollout，而不是复刻私有服务。
+- 模型复杂度先行：在数据和评估不稳时堆模型结构，收益不高。
 
-Exit criteria:
+## 简历定位
 
-- one documented non-synthetic data flow works end to end
-- ONNX export succeeds and passes parity check
-- closed-loop rollout demo produces metrics and visual artifacts
-- README is sufficient for a third party to run the project
+这个项目适合被描述为：
 
-### P2: Model And Research Upgrade
-
-Focus: improve quality after the project is already complete.
-
-Target outcome:
-
-- stronger model quality
-- more credible planning selection
-- ablation-backed improvements
-
-Planned work:
-
-- [ ] Replace heuristic candidate scoring with a learned scorer or value head.
-- [ ] Replace heuristic candidate scoring with a learned scorer or value head.
-      Groundwork is in place through an optional learned scorer head and hybrid scoring path.
-- [ ] Upgrade the scene encoder toward explicit agent-map-route attention.
-- [ ] Add ablation configs for encoder, noise mode, sampler, scorer, and route prior variants.
-- [ ] Add scenario-specific failure analysis outputs.
-- [ ] Add experiment tables to compare synthetic-only vs adapter-backed training.
-- [ ] Consider reward modeling or offline RL fine-tuning only after the rollout layer is stable.
-
-Exit criteria:
-
-- one model upgrade shows a measurable gain over the current baseline
-- ablation results are reproducible
-- learned selection is better than heuristic selection on at least one reportable metric set
-
-## Recommended File Evolution
-
-The likely directory growth for `V1` should look like:
-
-```text
-planner/
-  datasets/
-    adapters/
-  inference/
-  metrics/
-  rollout/
-  export/
-scripts/
-  prepare_dataset.py
-  train_planner.py
-  eval_planner.py
-  export_onnx.py
-  benchmark_infer.py
-docs/
-  commands.md
-  artifacts.md
-  evaluation.md
-```
-
-Not every file must be created exactly as shown, but the capability boundaries should emerge.
-
-## Execution Order
-
-The recommended next implementation sequence is:
-
-1. Build the dataset adapter interface and manifest generator.
-2. Refactor evaluation into a stable report contract and artifact schema.
-3. Unify train/eval/infer scripts around a single public CLI surface.
-4. Add ONNX export and parity tests.
-5. Add lightweight closed-loop rollout.
-6. Only then start a larger model refactor.
-
-This order keeps architecture pressure low and minimizes rework.
-
-## Risks
-
-The main risks are not model-related.
-
-- Dataset scope explosion: trying to support too many formats too early.
-- Evaluation churn: changing metric names and report structure after downstream scripts exist.
-- Simulator overreach: building a heavy service instead of a small public rollout loop.
-- Premature research work: spending time on new model blocks before data and evaluation are stable.
-
-The mitigation is simple: finish `P0`, then finish `P1`, then optimize.
-
-## Immediate Next Task
-
-The best next coding task is:
-
-- implement `planner/datasets/adapters/`
-- add `scripts/prepare_dataset.py`
-- define the first manifest format
-
-That is the highest-leverage step toward a complete project.
+- 自动驾驶轨迹规划项目，重点是 route-conditioned future trajectory generation。
+- 使用 PyTorch 实现条件扩散模型、1D U-Net 去噪器和多候选轨迹选择。
+- 包含统一场景接口、数据适配、评估报告、碰撞安全指标、消融实验、ONNX 导出和闭环 rollout。
